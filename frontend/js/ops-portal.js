@@ -120,10 +120,6 @@ TB.ops._keyReminders = function(){
   if(expired.length){
     items.push({tag:TB.ops._t('报价','Quote'), text:expired.length + TB.ops._t(' 笔 Series 报价过期（如 ',' Series quote(s) expired (e.g. ') + expired[0].series + TB.ops._t('），成员端购买受阻。', '); member purchases are blocked.'), route:'#/quote-monitor', action:TB.ops._t('监控','Monitor')});
   }
-  var kyb = TB.data.members.filter(function(m){ return m.kyb === 'Review' || m.status === 'pendingActivation'; });
-  if(kyb.length){
-    items.push({tag:TB.ops._t('成员','Member'), text:kyb.length + TB.ops._t(' 家成员机构 KYB/激活待处理（如 ',' member institution(s) pending KYB or activation (e.g. ') + kyb[0].name + TB.ops._t('）。', ').'), route:'#/members', action:TB.ops._t('处理','Handle')});
-  }
   var pending = TB.data.reviewTasks.filter(function(x){ return x.status === 'pending'; });
   if(pending.length){
     items.push({tag:TB.ops._t('审核','Review'), text:pending.length + TB.ops._t(' 项待审核任务（如 ',' review task(s) pending (e.g. ') + pending[0].id + ' ' + pending[0].type + TB.ops._t('）。', ').'), route:'#/series-review', action:TB.ops._t('审核','Review')});
@@ -745,14 +741,14 @@ TB.router.register('ops', {
   /* ---- 2. /members — Member Management List ---- */
   '/members': function(params) {
     var html = TB.utils.contentHeader(TB.t('nav.members'), '<button class="btn btn-sm" onclick="TB.ops.exportMembers()">'+TB.t('export')+'</button>');
+    html += '<div class="text-muted text-sm mb-2">' + TB.ops._t('入驻与 KYB 审核在 Web Admin（Remi Admin）完成，进入 TokenBank 的机构均为审核通过状态；本页管理机构基本信息及其 admin / 子账号。', 'Onboarding and KYB review happen in Web Admin (Remi Admin); institutions in TokenBank are all approved. This page manages their basic info and admin / sub-accounts.') + '</div>';
 
     html += TB.ui.filterBar({
       fields: [
         {name: 'status', label: TB.t('status'), type: 'select', options: [
           {value: '', label: TB.t('all')},
           {value: 'active', label: TB.t('st.active')},
-          {value: 'pendingActivation', label: TB.t('st.pendingActivation')},
-          {value: 'suspended', label: TB.t('st.suspended')},
+          {value: 'deactivated', label: TB.t('st.deactivated')},
         ]},
         {name: 'type', label: TB.t('type'), type: 'select', options: [
           {value: '', label: TB.t('all')},
@@ -779,11 +775,12 @@ TB.router.register('ops', {
         {key: 'remiId', label: TB.t('lbl.remiId')},
         {key: 'type', label: TB.ops._t('机构类型', 'Org Type')},
         {key: 'country', label: TB.t('lbl.country')},
-        {key: 'kyb', label: TB.t('lbl.kyb'), render: function(r) {
-          return TB.ui.badge(TB.utils.enumLabel(r.kyb), r.kyb === 'Passed' ? 'success' : 'warning');
+        {key: 'admin', label: TB.ops._t('管理员账号', 'Admin Account'), render: function(r) {
+          var adm = TB.data.accounts.filter(function(a) { return a.org === r.name && a.role === 'Admin'; })[0];
+          return adm ? TB.utils.esc(adm.name) + '<span class="text-muted"> · ' + TB.utils.esc(adm.email) + '</span>' : TB.ops._t('未配置', 'Unassigned');
         }},
-        {key: 'subStatus', label: TB.ops._t('订阅状态', 'Sub Status'), render: function(r) {
-          return TB.ui.badge(TB.utils.enumLabel(r.subStatus), r.subStatus === 'Active' ? 'success' : 'warning');
+        {key: 'accounts', label: TB.ops._t('账号数', 'Accounts'), align: 'right', render: function(r) {
+          return String(TB.data.accounts.filter(function(a) { return a.org === r.name; }).length);
         }},
         {key: 'emtBalance', label: TB.ops._t('EMT总余额', 'EMT Balance'), align: 'right', render: function(r) {
           return TB.utils.money(r.emtBalance);
@@ -822,26 +819,19 @@ TB.router.register('ops', {
         {label: TB.t('lbl.remiId'), value: m.remiId},
         {label: TB.ops._t('机构类型', 'Org Type'), value: m.type},
         {label: TB.t('lbl.country'), value: m.country},
-        {label: TB.t('lbl.kyb'), value: TB.ui.badge(TB.utils.enumLabel(m.kyb), m.kyb === 'Passed' ? 'success' : 'warning')},
-        {label: TB.ops._t('订阅状态', 'Sub Status'), value: TB.ui.badge(TB.utils.enumLabel(m.subStatus), m.subStatus === 'Active' ? 'success' : 'warning')},
         {label: TB.ops._t('EMT总余额', 'EMT Balance'), value: TB.utils.money(m.emtBalance)},
         {label: TB.ops._t('入驻时间', 'Onboarded'), value: m.createdAt},
         {label: TB.t('status'), value: TB.ui.statusBadge(m.status)},
       ])
     );
 
-    /* Tabs */
-    var memberTxs = TB.data.transactions.filter(function(t) { return t.member === m.name; });
-    var memberHoldings = TB.data.holdings.filter(function(h) { return h.member === m.name; });
-
+    /* Tabs: basic info + institution accounts (onboarding review lives in Web Admin) */
+    var orgAccounts = TB.data.accounts.filter(function(a) { return a.org === m.name; });
+    var admins = orgAccounts.filter(function(a) { return a.role === 'Admin'; });
     html += TB.ui.tabs({
       items: [
         {key: 'basic', label: TB.ops._t('基本信息', 'Basic Info'), active: true},
-        {key: 'kyb', label: TB.t('lbl.kyb') + TB.ops._t('合规', ' Compliance')},
-        {key: 'wallet', label: TB.ops._t('钱包资金', 'Wallet & Funds')},
-        {key: 'tx', label: TB.t('nav.transactions')},
-        {key: 'holdings', label: TB.t('nav.holdings')},
-        {key: 'subacc', label: TB.ops._t('机构账号', 'Institution Accounts')},
+        {key: 'subacc', label: TB.ops._t('机构账号', 'Institution Accounts') + ' (' + orgAccounts.length + ')'},
       ],
       content: {
         basic: TB.ui.descList([
@@ -850,42 +840,13 @@ TB.router.register('ops', {
           {label: TB.ops._t('机构类型', 'Org Type'), value: m.type},
           {label: TB.t('lbl.country'), value: m.country},
           {label: TB.ops._t('入驻时间', 'Onboarded'), value: m.createdAt},
+          {label: TB.ops._t('EMT总余额', 'EMT Balance'), value: TB.utils.money(m.emtBalance)},
+          {label: TB.ops._t('管理员账号', 'Admin Accounts'), value: admins.length ? admins.map(function(a) { return TB.utils.esc(a.name) + '（' + TB.utils.esc(a.email) + '）'; }).join('、') : TB.ops._t('未配置', 'Unassigned')},
+          {label: TB.ops._t('子账号数', 'Sub-account Count'), value: String(Math.max(0, orgAccounts.length - admins.length))},
+          {label: TB.t('status'), value: TB.ui.statusBadge(m.status)},
         ]),
-        kyb: TB.ui.descList([
-          {label: TB.t('lbl.kyb'), value: TB.ui.badge(TB.utils.enumLabel(m.kyb), m.kyb === 'Passed' ? 'success' : 'warning')},
-          {label: TB.ops._t('合规等级', 'Compliance Level'), value: 'Tier 2'},
-          {label: TB.ops._t('审核日期', 'Review Date'), value: m.createdAt},
-          {label: TB.ops._t('有效期至', 'Valid Until'), value: '2027-08-15'},
-        ]),
-        wallet: TB.ui.descList([
-          {label: TB.t('lbl.balance'), value: TB.utils.money(m.emtBalance)},
-          {label: TB.t('lbl.available'), value: TB.utils.money(m.emtBalance)},
-          {label: TB.t('lbl.frozen'), value: TB.utils.money(0)},
-        ]),
-        tx: memberTxs.length > 0 ? TB.ui.table({
-          columns: [
-            {key: 'id', label: TB.ops._t('交易编号', 'Tx ID')},
-            {key: 'time', label: TB.t('time')},
-            {key: 'type', label: TB.t('type')},
-            {key: 'amount', label: TB.t('amount'), align: 'right', render: function(r) { return TB.utils.money(r.amount); }},
-            {key: 'status', label: TB.t('status'), render: function(r) { return TB.ui.statusBadge(r.status); }},
-          ],
-          data: memberTxs,
-        }) : TB.ui.emptyState('📋', TB.t('noData')),
-        holdings: memberHoldings.length > 0 ? TB.ui.table({
-          columns: [
-            {key: 'series', label: TB.t('lbl.seriesId')},
-            {key: 'faceValue', label: TB.t('lbl.faceValue'), align: 'right', render: function(r) { return TB.utils.money(r.faceValue); }},
-            {key: 'valuation', label: TB.ops._t('估值', 'Valuation'), align: 'right', render: function(r) { return TB.utils.money(r.valuation); }},
-            {key: 'sellerYield', label: TB.t('lbl.yield'), render: function(r) { return TB.utils.yield(r.sellerYield); }},
-            {key: 'status', label: TB.t('status'), render: function(r) { return TB.ui.statusBadge(r.status); }},
-          ],
-          data: memberHoldings,
-        }) : TB.ui.emptyState('📋', TB.t('noData')),
-        subacc: (function(){
-          var orgAccounts = TB.data.accounts.filter(function(a) { return a.org === m.name; });
-          return '<div class="text-muted text-sm mb-2">' + TB.ops._t('成员端与发行端机构的管理员及子账号由运营在此管理：停用、启用与重置密码；机构内部的其余账号维护在各自门户完成。', 'Operations manages the admins and sub-accounts of member and issuer institutions here: disable, enable and password reset; the remaining account maintenance happens inside each institution portal.') + '</div>'
-            + (orgAccounts.length ? TB.ui.table({
+        subacc: '<div class="text-muted text-sm mb-2">' + TB.ops._t('进入 TokenBank 的机构均已通过 Web Admin 审核；运营在此管理其 admin 与子账号：停用、启用与重置密码。', 'Institutions in TokenBank have all passed Web Admin review; operations manages their admin and sub-accounts here: disable, enable and password reset.') + '</div>'
+          + (orgAccounts.length ? TB.ui.table({
               columns: [
                 {key: 'name', label: TB.ops._t('账号名', 'Account')},
                 {key: 'email', label: TB.t('lbl.email')},
@@ -901,8 +862,7 @@ TB.router.register('ops', {
               ],
               data: orgAccounts,
               paginate: false,
-            }) : TB.ui.emptyState('📋', TB.t('noData')));
-        })(),
+            }) : TB.ui.emptyState('📋', TB.t('noData'))),
       },
     });
 

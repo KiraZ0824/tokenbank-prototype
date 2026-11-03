@@ -255,8 +255,8 @@ TB.data = {
     {id:'MEM-001',name:'Alpha Fund Management',remiId:'RM-ALPHA-001',type:'Member',country:'Singapore',kyb:'Passed',subStatus:'Active',emtBalance:12500000,createdAt:'2026-08-15',status:'active'},
     {id:'MEM-002',name:'Beta Capital Partners',remiId:'RM-BETA-002',type:'Member',country:'Hong Kong',kyb:'Passed',subStatus:'Active',emtBalance:8300000,createdAt:'2026-08-20',status:'active'},
     {id:'MEM-003',name:'Gamma Wealth Advisory',remiId:'RM-GAMMA-003',type:'Member',country:'Switzerland',kyb:'Passed',subStatus:'Active',emtBalance:5600000,createdAt:'2026-09-01',status:'active'},
-    {id:'MEM-004',name:'Delta Asset Management',remiId:'RM-DELTA-004',type:'Member',country:'United Kingdom',kyb:'Review',subStatus:'Pending',emtBalance:0,createdAt:'2026-10-28',status:'pendingActivation'},
-    {id:'MEM-005',name:'Epsilon Investments',remiId:'RM-EPSI-005',type:'Member',country:'Japan',kyb:'Passed',subStatus:'Active',emtBalance:15200000,createdAt:'2026-07-10',status:'suspended'},
+    {id:'MEM-004',name:'Delta Asset Management',remiId:'RM-DELTA-004',type:'Member',country:'United Kingdom',kyb:'Passed',subStatus:'Active',emtBalance:3200000,createdAt:'2026-10-28',status:'active'},
+    {id:'MEM-005',name:'Epsilon Investments',remiId:'RM-EPSI-005',type:'Member',country:'Japan',kyb:'Passed',subStatus:'Active',emtBalance:15200000,createdAt:'2026-07-10',status:'active'},
     {id:'MEM-006',name:'Zeta Financial Group',remiId:'RM-ZETA-006',type:'Issuer',country:'Luxembourg',kyb:'Passed',subStatus:'Active',emtBalance:50000000,createdAt:'2026-06-01',status:'active'},
     {id:'MEM-007',name:'Bison Bank',remiId:'RM-BISON-001',type:'Issuer',country:'Luxembourg',kyb:'Passed',subStatus:'Active',emtBalance:18500000,createdAt:'2026-05-20',status:'active'},
   ],
@@ -313,7 +313,7 @@ TB.data = {
     {id:'ACC-012',name:'Leo Zhang',email:'leo@beta-cap.com',role:'Trader',org:'Beta Capital Partners',status:'active',created:'2026-09-05',lastLogin:'2026-11-01 10:30:00'},
     {id:'ACC-013',name:'Nina Keller',email:'nina@gamma-wealth.ch',role:'Admin',org:'Gamma Wealth Advisory',status:'active',created:'2026-09-10',lastLogin:'2026-10-30 15:00:00'},
     {id:'ACC-014',name:'Omar Haddad',email:'omar@delta-am.co.uk',role:'Admin',org:'Delta Asset Management',status:'active',created:'2026-10-28',lastLogin:'-'},
-    {id:'ACC-015',name:'Ken Sato',email:'ken@epsilon-inv.jp',role:'Admin',org:'Epsilon Investments',status:'suspended',created:'2026-07-12',lastLogin:'2026-10-20 08:00:00'},
+    {id:'ACC-015',name:'Ken Sato',email:'ken@epsilon-inv.jp',role:'Admin',org:'Epsilon Investments',status:'active',created:'2026-07-12',lastLogin:'2026-11-02 10:20:00'},
     {id:'ACC-016',name:'Claire Dubois',email:'claire@zeta-fg.lu',role:'Admin',org:'Zeta Financial Group',status:'active',created:'2026-06-15',lastLogin:'2026-11-02 07:45:00'},
   ],
   reconciliations: [
@@ -344,7 +344,6 @@ TB.data = {
   reviewTasks: [
     {id:'REV-001',type:'Series Issuance',ref:'UST-2026-007',applicant:'James Wilson',node:'Maker',time:'2026-11-01 17:00:00',priority:'High',status:'pending'},
     {id:'REV-002',type:'Burn Request',ref:'BRN-002',applicant:'James Wilson',node:'Maker',time:'2026-11-02 08:00:00',priority:'High',status:'pending'},
-    {id:'REV-003',type:'Member Activation',ref:'MEM-004',applicant:'System',node:'Checker',time:'2026-10-28 10:00:00',priority:'Medium',status:'pending'},
     {id:'REV-004',type:'Series Issuance',ref:'UST-2026-008',applicant:'James Wilson',node:'Approver',time:'2026-10-24 15:00:00',priority:'High',status:'completed'},
   ],
   emtReserve: {available:18500000, frozen:2500000, bufferRate:0.05, lastCloseRun:'2026-11-02 16:00:00'},
