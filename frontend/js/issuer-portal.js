@@ -453,11 +453,11 @@ TB.pages.issuer.burnPrereqs = function(row, holds){
   return {
     remainTokens: remain,
     items: [
-      {ok:matured, label:t('Series已到期','Series Matured'), detail:row.maturity},
-      {ok:holds.length > 0 && remain === 0, label:t('全部成员赎回完成','All Member Redemptions Complete'), detail:row.redemptions + ' ' + t('笔赎回记录','redemption record(s)')},
-      {ok:!!row.emtPaid, label:t('全部成员EMT兑付完成','All Member EMT Payouts Complete'), detail:row.emtPaid ? t('已兑付','Paid') : t('未兑付','Unpaid')},
-      {ok:remain === 0, label:t('R-UST归属清零','R-UST Ownership Cleared'), detail:t('剩余 ','Remaining ') + TB.utils.tokens(remain)},
-      {ok:row.reconStatus === 'matched', label:t('三方对账通过','Three-way Reconciliation Matched'), detail:row.reconStatus === 'matched' ? t('全部一致','All matched') : (row.reconStatus === 'break' ? row.breaks + ' ' + t('笔差异','break(s)') : t('无对账批次','No reconciliation batch'))}
+      {key:'matured', ok:matured, label:t('Series已到期','Series Matured'), detail:row.maturity},
+      {key:'redeemed', ok:holds.length > 0 && remain === 0, label:t('全部成员赎回完成','All Member Redemptions Complete'), detail:row.redemptions + ' ' + t('笔赎回记录','redemption record(s)')},
+      {key:'emtPaid', ok:!!row.emtPaid, label:t('全部成员EMT兑付完成','All Member EMT Payouts Complete'), detail:row.emtPaid ? t('已兑付','Paid') : t('未兑付','Unpaid')},
+      {key:'rustCleared', ok:remain === 0, label:t('R-UST归属清零','R-UST Ownership Cleared'), detail:t('剩余 ','Remaining ') + TB.utils.tokens(remain)},
+      {key:'recon', ok:row.reconStatus === 'matched', label:t('三方对账通过','Three-way Reconciliation Matched'), detail:row.reconStatus === 'matched' ? t('全部一致','All matched') : (row.reconStatus === 'break' ? row.breaks + ' ' + t('笔差异','break(s)') : t('无对账批次','No reconciliation batch'))}
     ]
   };
 };
@@ -507,8 +507,24 @@ TB.pages.issuer.openBurnReview = function(id, readonly){
     {label:t('当前审核节点','Current Review Node'), value:row.status === 'pending' ? t('未发起（待本次审核确认）','Not started (awaiting this review)') : TB.text(flow && flow.nodes[0] ? flow.nodes[0].name : {zh:'-',en:'-'})},
     {label:TB.t('status'), value:TB.pages.issuer.burnStatusBadge(row.status)}
   ]);
-  body += '<div class="font-bold mt-4 mb-2">' + t('前置条件确认结果','Prerequisite Check') + '</div>'
-    + TB.ui.descList(pre.items.map(function(p){ return {label:p.label, value:(p.ok ? TB.ui.badge('✓', 'success') : TB.ui.badge('✗', 'error')) + ' ' + p.detail}; }));
+  body += '<div class="font-bold mt-4 mb-2">' + (editable ? t('前置条件确认','Prerequisite Attestation') : t('前置条件确认结果','Prerequisite Confirmation'))
+    + TB.utils.note(editable
+      ? t('系统已给出下方各项的校验数据，请审核人逐项核对后勾选确认；未全部勾选前不可发起销毁审批。','The system shows the check data below; the reviewer must verify and tick each item. Submission stays disabled until all are ticked.')
+      : t('审核人逐项勾选确认后的留痕。','Attestation trail ticked by the reviewer.')) + '</div>';
+  if(editable){
+    body += '<div class="pre-check-list">' + pre.items.map(function(p){
+      return '<label class="form-checkbox pre-check-item' + (p.ok ? '' : ' pre-check-bad') + '"><input type="checkbox" id="pre_' + p.key + '"' + (p.ok ? '' : ' disabled') + ' onchange="TB.pages.issuer._syncBurnConfirm(\'' + id + '\')">'
+        + '<span>' + p.label + ' <span class="text-muted text-sm">（' + TB.utils.esc(p.detail) + '）</span>'
+        + (p.ok ? '' : ' ' + TB.ui.badge(t('系统校验未通过，不可勾选','System check failed; cannot tick'), 'error')) + '</span></label>';
+    }).join('') + '</div>';
+  } else {
+    var sign = conf.prereqSign || {};
+    body += TB.ui.descList(pre.items.map(function(p){
+      var badge = sign[p.key] ? TB.ui.badge('✓ ' + t('已确认','Attested'), 'success') : (p.ok ? TB.ui.badge('✓', 'success') : TB.ui.badge('✗', 'error'));
+      return {label:p.label, value:badge + ' ' + p.detail};
+    }));
+    if(conf.reviewer) body += '<div class="text-muted text-sm mt-2">' + t('确认人','Attested by') + '：' + TB.utils.esc(conf.reviewer) + ' · ' + TB.utils.dt(conf.reviewedAt || row.submittedAt) + '</div>';
+  }
   body += '<div class="font-bold mt-4 mb-2">' + t('成员赎回信息','Member Redemption Info') + '</div>'
     + (holds.length ? TB.ui.table({ columns:[
         {key:'member', label:t('成员','Member')},
@@ -532,9 +548,18 @@ TB.pages.issuer.openBurnReview = function(id, readonly){
   var footer = '<button class="btn" onclick="TB.ui.closeModal()">' + (editable ? TB.t('cancel') : TB.t('close')) + '</button>';
   if(editable){
     footer += '<button class="btn btn-danger" onclick="TB.pages.issuer.rejectBurnConfirm(\'' + id + '\')">' + t('驳回','Reject') + '</button>'
-      + '<button class="btn btn-primary"' + (blockers.length || !flow || !flow.nodes.length || !flow.enabled ? ' disabled' : '') + ' onclick="TB.pages.issuer.confirmBurnReview(\'' + id + '\')">' + t('确认无误并发起销毁审批','Confirm & Submit Burn Approval') + '</button>';
+      + '<button class="btn btn-primary" id="burn_confirm_btn"' + (blockers.length || !flow || !flow.nodes.length || !flow.enabled ? ' disabled' : '') + ' onclick="TB.pages.issuer.confirmBurnReview(\'' + id + '\')">' + t('确认无误并发起销毁审批','Confirm & Submit Burn Approval') + '</button>';
   }
   TB.ui.modal({ title:t('销毁审核','Burn Review') + ' · ' + row.series, body:body, size:'lg', footer:footer });
+  if(editable) TB.pages.issuer._syncBurnConfirm(id);
+};
+
+/* 前置条件须由审核人逐项勾选后才可提交；系统校验未通过的项不可勾选 */
+TB.pages.issuer._syncBurnConfirm = function(id){
+  var btn = document.getElementById('burn_confirm_btn');
+  if(!btn) return;
+  var boxes = Array.prototype.filter.call(document.querySelectorAll('#modal-container .pre-check-item input'), function(b){ return !b.disabled; });
+  btn.disabled = !(boxes.length && boxes.every(function(b){ return b.checked; }));
 };
 
 TB.pages.issuer.confirmBurnReview = function(id){
@@ -552,6 +577,18 @@ TB.pages.issuer.confirmBurnReview = function(id){
     TB.utils.toast(t('前置条件不满足：','Prerequisites not met: ') + bad[0].label, 'error');
     return;
   }
+  var sign = {}, missing = [];
+  pre.items.forEach(function(p){
+    var box = document.getElementById('pre_' + p.key);
+    if(box && !box.disabled){
+      if(box.checked) sign[p.key] = true; else missing.push(p.label);
+    }
+  });
+  if(missing.length){
+    TB.utils.toast(t('请先逐项勾选确认前置条件：','Please tick each prerequisite to attest it: ') + missing.join('、'), 'error');
+    return;
+  }
+  TB.pages.issuer._burnSign = sign;
   TB.pages.issuer._burnComment = comment;
   TB.pages.issuer._submitBurnDone(id);
 };
@@ -593,6 +630,7 @@ TB.pages.issuer._submitBurnDone = function(id){
   conf.status = 'submitted';
   conf.submittedAt = TB.utils.nowET();
   conf.reviewComment = TB.pages.issuer._burnComment || '';
+  conf.prereqSign = TB.pages.issuer._burnSign || {};
   conf.reviewer = user;
   conf.reviewedAt = TB.utils.nowET();
   TB.ui.closeModal();

@@ -245,6 +245,11 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px}
 .form-row .form-group{flex:1}
 .form-checkbox{display:flex;align-items:center;gap:6px;cursor:pointer}
 .form-checkbox input{width:16px;height:16px;accent-color:var(--primary)}
+.pre-check-list{display:flex;flex-direction:column;gap:9px}
+.pre-check-list .form-checkbox{align-items:flex-start;font-size:13px;color:var(--text)}
+.pre-check-list .form-checkbox input{margin-top:2px}
+.pre-check-bad > span{color:var(--error)}
+.pre-check-list .form-checkbox input:disabled + span{color:var(--text-muted)}
 .upload-zone{border:2px dashed var(--border);padding:32px;text-align:center;border-radius:var(--radius);cursor:pointer;color:var(--text-secondary);transition:all .15s}
 .upload-zone:hover{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
 
@@ -464,9 +469,9 @@ table.data-table{width:100%;border-collapse:collapse;font-size:13px}
 <div id="modal-container"></div>
 <div id="toast-container" class="toast-container"></div>
 <div id="notif-dropdown" class="notification-dropdown"></div>
-<script src="js/core.js?v=20261103-54"></script>
-<script src="js/member-portal.js?v=20261103-54"></script>
-<script src="js/issuer-portal.js?v=20261103-54"></script>
-<script src="js/ops-portal.js?v=20261103-54"></script>
+<script src="js/core.js?v=20261103-55"></script>
+<script src="js/member-portal.js?v=20261103-55"></script>
+<script src="js/issuer-portal.js?v=20261103-55"></script>
+<script src="js/ops-portal.js?v=20261103-55"></script>
 </body>
 </html>
