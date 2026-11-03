@@ -72,6 +72,7 @@ TB.i18n = {
   'grp.wallet':{en:'Wallet & Funds',zh:'钱包与资金'},'grp.account':{en:'Account',zh:'账号管理'},
   'grp.compliance':{en:'Compliance & Security',zh:'合规与安全'},
   'grp.rustMgmt':{en:'R-UST Management',zh:'R-UST管理'},
+  'grp.emtMgmt':{en:'EMT Reserve Mgmt',zh:'EMT 储备管理'},
   'grp.reviewMgmt':{en:'Review Management',zh:'审核管理'},'grp.opsMgmt':{en:'Operations',zh:'运营管理'},
   'grp.sysMgmt':{en:'System',zh:'系统管理'},'grp.announce':{en:'Announcements',zh:'公告与通知'},
   // labels
@@ -568,13 +569,15 @@ TB.nav = {
       { label:'nav.quotes', icon:'quotes', route:'#/quotes' },
       { label:'nav.burn', icon:'burn', route:'#/burn' },
     ]},
+    { group:'grp.emtMgmt', items:[
+      { label:'nav.emtMgmt', icon:'wallet', route:'#/emt' },
+    ]},
     { group:'grp.reviewMgmt', items:[
       { label:'nav.reviewCenter', icon:'queue', route:'#/review-center' },
       { label:'nav.approvalConfig', icon:'settings', route:'#/approvals/flows' },
     ]},
     { group:null, items:[
       { label:'nav.reconciliation', icon:'reconcile', route:'#/reconciliation' },
-      { label:'nav.emtMgmt', icon:'wallet', route:'#/emt' },
       { label:'nav.issuerAccounts', icon:'account', route:'#/accounts' },
       { label:'nav.issuerNotif', icon:'notification', route:'#/notifications' },
     ]},
