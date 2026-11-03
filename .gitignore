@@ -1,0 +1,5 @@
+# 仅发布 frontend/ 原型：工作区其余需求文档、图片与生成脚本不入库
+/*
+!/.gitignore
+!/.github/
+!/frontend/
