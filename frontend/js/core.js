@@ -471,7 +471,33 @@ TB.data.permCatalog = {
       {key:'accounts.perm', label:{zh:'权限分配',en:'Assign permissions'}},
     ]},
   ],
+  ops: [
+    { group:{zh:'运营管理',en:'Operations'}, items:[
+      {key:'ops.dashboard', label:{zh:'运营看板',en:'Dashboard'}},
+      {key:'ops.members', label:{zh:'成员管理（机构基本信息与账号）',en:'Member management (org info & accounts)'}},
+      {key:'ops.seriesReview', label:{zh:'Series审核',en:'Series review'}},
+      {key:'ops.monitor', label:{zh:'产品监控',en:'Product monitoring'}},
+      {key:'ops.capacity', label:{zh:'容量/库存',en:'Capacity / inventory'}},
+      {key:'ops.quotes', label:{zh:'报价监控',en:'Quote monitor'}},
+    ]},
+    { group:{zh:'系统管理',en:'System'}, items:[
+      {key:'ops.accounts', label:{zh:'平台账号（运营内部）',en:'Platform accounts (internal ops)'}},
+      {key:'ops.roles', label:{zh:'角色权限与运营端功能权限配置',en:'Roles & ops permission configuration'}},
+      {key:'ops.flowConfig', label:{zh:'审核流程节点配置',en:'Approval flow node config'}},
+      {key:'ops.params', label:{zh:'系统参数',en:'System parameters'}},
+      {key:'ops.audit', label:{zh:'审计日志',en:'Audit log'}},
+      {key:'ops.announce', label:{zh:'公告管理',en:'Announcements'}},
+    ]},
+  ],
 };
+/* 平台默认角色：分端设置，成员/发行端 Admin 默认持有各自门户全量功能，
+ * 运营端 Admin 持有运营端全量功能并负责运营端功能权限配置，系统运维仅持系统管理类功能。 */
+TB.data.platformRoles = [
+  {id:'ops_admin', portal:'ops', name:{zh:'运营端 Admin',en:'Ops Admin'}, desc:{zh:'运营端全部功能，并可配置运营端功能权限',en:'All ops functions; configures ops permissions'}, grants:{ops:'all'}},
+  {id:'member_admin', portal:'member', name:{zh:'成员机构端 Admin',en:'Member Admin'}, desc:{zh:'成员机构端全部页面功能',en:'All member-portal functions'}, grants:{member:'all'}},
+  {id:'issuer_admin', portal:'issuer', name:{zh:'发行方端 Admin',en:'Issuer Admin'}, desc:{zh:'发行方端全部页面功能',en:'All issuer-portal functions'}, grants:{issuer:'all'}},
+  {id:'sys_ops', portal:'ops', name:{zh:'系统运维',en:'System Operations'}, desc:{zh:'运营端系统管理类功能',en:'Ops system-management functions'}, grants:{ops:['ops.accounts','ops.roles','ops.params','ops.audit','ops.monitor','ops.announce']}},
+];
 TB.data.roles = {
   member: [
     {id:'Admin', name:{zh:'管理员',en:'Admin'}, perms:'all'},

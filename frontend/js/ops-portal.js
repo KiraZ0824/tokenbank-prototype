@@ -474,53 +474,51 @@ TB.ops._resetPwdDone = function(id) {
   TB.utils.toast(TB.ops._t('密码已重置，临时密码已发送至 ', 'Password reset; temporary password sent to ') + a.email, 'success');
   TB.router.render();
 };
-TB.ops.unlockAccount = function(id) {
-  TB.ui.confirmModal(
-    TB.ops._t('解锁账号', 'Unlock Account'),
-    TB.ops._t('确认解锁该账号？', 'Confirm to unlock this account?'),
-    'TB.ops._confirmSuccess'
-  );
+/* ====== Role Helpers ======
+ * 角色按端划分：成员/发行端 Admin 的权限为其门户全量（只读展示），
+ * 运营端角色的运营端功能权限可由运营端 Admin 在此配置。 */
+TB.ops._allPermKeys = function(portal){
+  var keys = [];
+  (TB.data.permCatalog[portal] || []).forEach(function(g){ g.items.forEach(function(it){ keys.push(it.key); }); });
+  return keys;
 };
-
-/* ====== Role Helpers ====== */
-TB.ops.openCreateRole = function() {
-  var body = TB.ui.formField({label: TB.ops._t('角色名称', 'Role Name'), name: 'role_name', required: true}) +
-    TB.ui.formField({label: TB.ops._t('角色描述', 'Description'), name: 'role_desc', type: 'textarea'});
-  var footer = '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button>' +
-    '<button class="btn btn-primary" onclick="TB.ops._toastSaved()">'+TB.t('create')+'</button>';
-  TB.ui.modal({ title: TB.t('create'), body: body, footer: footer });
+TB.ops._hasGrant = function(grants, portal, key){
+  var g = grants[portal];
+  if(g === 'all') return true;
+  return Array.isArray(g) && g.indexOf(key) >= 0;
 };
-TB.ops.savePermissions = function() {
-  TB.ui.confirmModal(
-    TB.ops._t('保存权限', 'Save Permissions'),
-    TB.ops._t('确认保存当前角色的权限配置？', 'Confirm to save permission settings for current role?'),
-    'TB.ops._confirmSuccess'
-  );
+TB.ops.selectRole = function(id){
+  TB.ops._roleSel = id;
+  TB.ops._roleDraft = null;
+  TB.router.render();
 };
-TB.ops.openEditRole = function(id) {
-  var body = TB.ui.formField({label: TB.ops._t('角色名称', 'Role Name'), name: 'edit_role_name', value: id}) +
-    TB.ui.formField({label: TB.ops._t('角色描述', 'Description'), name: 'edit_role_desc', type: 'textarea'});
-  var footer = '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button>' +
-    '<button class="btn btn-primary" onclick="TB.ops._toastSaved()">'+TB.t('save')+'</button>';
-  TB.ui.modal({ title: TB.t('edit'), body: body, footer: footer });
+TB.ops.toggleRolePerm = function(portal, key){
+  var d = TB.ops._roleDraft;
+  if(!d) return;
+  if(d[portal] === 'all') d[portal] = TB.ops._allPermKeys(portal);
+  if(!Array.isArray(d[portal])) d[portal] = [];
+  var i = d[portal].indexOf(key);
+  if(i >= 0) d[portal].splice(i, 1); else d[portal].push(key);
+  TB.router.render();
 };
-TB.ops.openDeleteRole = function(id) {
-  TB.ui.confirmModal(
-    TB.t('delete'),
-    TB.t('msg.confirmDelete'),
-    'TB.ops._confirmSuccess', 'danger'
-  );
+TB.ops.saveRolePerms = function(){
+  var role = TB.data.platformRoles.find(function(r){ return r.id === TB.ops._roleSel; });
+  if(!role || role.portal !== 'ops') return;
+  role.grants = JSON.parse(JSON.stringify(TB.ops._roleDraft || role.grants));
+  TB.utils.toast(TB.ops._t('运营端功能权限配置已保存', 'Ops permission configuration saved'), 'success');
+  TB.router.render();
 };
-TB.ops.openAssignMember = function(id) {
-  var body = TB.ui.formField({
-    label: TB.ops._t('选择成员', 'Select Member'),
-    name: 'role_member',
-    type: 'select',
-    options: TB.data.accounts.map(function(a) { return {value: a.id, label: a.name + ' (' + a.email + ')'}; }),
+TB.ops._roleHolders = function(role){
+  if(role.portal === 'ops'){
+    return TB.data.accounts.filter(function(a){
+      if(a.org !== 'TokenBank') return false;
+      return role.id === 'ops_admin' ? a.role === 'Sys Admin' : a.role !== 'Sys Admin';
+    });
+  }
+  var orgType = role.portal === 'member' ? 'Member' : 'Issuer';
+  return TB.data.accounts.filter(function(a){
+    return a.role === 'Admin' && TB.data.members.some(function(m){ return m.name === a.org && m.type === orgType; });
   });
-  var footer = '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button>' +
-    '<button class="btn btn-primary" onclick="TB.ops._toastSaved()">'+TB.t('assign')+'</button>';
-  TB.ui.modal({ title: TB.ops._t('分配成员', 'Assign Member'), body: body, footer: footer });
 };
 
 /* ====== Audit Config Helpers ======
@@ -1246,7 +1244,6 @@ TB.router.register('ops', {
         {label: TB.t('edit'), onClick: 'TB.ops.openEditAccount', type: 'text'},
         {label: TB.t('disable'), onClick: 'TB.ops.toggleAccountStatus', type: 'text'},
         {label: TB.t('resetPwd'), onClick: 'TB.ops.resetAccountPwd', type: 'text'},
-        {label: TB.ops._t('解锁', 'Unlock'), onClick: 'TB.ops.unlockAccount', type: 'text'},
       ],
       pagination: {total: opsAccounts.length, pageSize: 10, current: 1},
     });
@@ -1256,79 +1253,61 @@ TB.router.register('ops', {
 
   /* ---- 14. /roles — Role & Permission Management ---- */
   '/roles': function(params) {
-    var roles = [
-      {id: 'R1', name: 'System Admin', members: 1, desc: TB.ops._t('全系统访问权限', 'Full system access')},
-      {id: 'R2', name: 'Reviewer', members: 1, desc: TB.ops._t('审核与批准任务', 'Review and approve tasks')},
-      {id: 'R3', name: 'Operations', members: 1, desc: TB.ops._t('日常运营管理', 'Day-to-day operations')},
-      {id: 'R4', name: 'Compliance', members: 0, desc: TB.ops._t('合规监控', 'Compliance monitoring')},
-    ];
+    var t = TB.ops._t;
+    var roles = TB.data.platformRoles;
+    if(!roles.some(function(r){ return r.id === TB.ops._roleSel; })) TB.ops._roleSel = roles[0].id;
+    var role = roles.find(function(r){ return r.id === TB.ops._roleSel; });
+    if(!TB.ops._roleDraft) TB.ops._roleDraft = JSON.parse(JSON.stringify(role.grants));
+    var portalName = {member:t('成员机构端','Member Portal'), issuer:t('发行方端','Issuer Portal'), ops:t('运营端','Operations Portal')};
+    var html = TB.utils.contentHeader(TB.t('nav.roles'));
+    html += '<div class="text-muted text-sm mb-2">' + t('默认角色按端划分：成员机构端 Admin 与发行方端 Admin 默认拥有各自门户的全部页面功能；运营端 Admin 拥有运营端全部功能，并负责运营端的功能权限配置；系统运维仅持有运营端系统管理类功能。', 'Default roles are per portal: Member Admin and Issuer Admin hold all functions of their own portal; Ops Admin holds all ops functions and configures ops permissions; System Operations holds ops system-management functions only.') + '</div>';
 
-    var html = TB.utils.contentHeader(TB.t('nav.roles'), '<button class="btn btn-sm btn-primary" onclick="TB.ops.openCreateRole()">'+TB.t('create')+'</button>');
-
-    /* Left: role list | Right: permission matrix */
-    var sidebarHtml = '<div style="width:240px;flex-shrink:0">';
-    roles.forEach(function(r, i) {
-      sidebarHtml += '<div class="menu-item' + (i === 0 ? ' active' : '') + '" onclick="TB.ops._toastFilter()">' +
-        '<div><div class="font-bold">' + r.name + '</div>' +
-        '<div class="text-sm text-muted">' + r.members + ' ' + TB.ops._t('成员', 'members') + '</div></div></div>';
+    var sidebarHtml = '<div style="width:260px;flex-shrink:0">';
+    roles.forEach(function(r){
+      sidebarHtml += '<div class="menu-item' + (r.id === role.id ? ' active' : '') + '" onclick="TB.ops.selectRole(\'' + r.id + '\')">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+        '<span>' + TB.text(r.name) + '</span>' +
+        '<span class="badge ' + (r.portal === 'ops' ? 'badge-info' : (r.portal === 'issuer' ? 'badge-purple' : 'badge-success')) + '">' + portalName[r.portal] + '</span></div>' +
+        '<div class="text-sm text-muted">' + TB.text(r.desc) + '</div></div>';
     });
     sidebarHtml += '</div>';
 
-    /* Permission matrix */
-    var modules = [
-      {name: TB.ops._t('成员管理', 'Member Mgmt'), perms: [true, true, false, false]},
-      {name: TB.ops._t('Series管理', 'Series Mgmt'), perms: [true, true, true, false]},
-      {name: TB.ops._t('容量管理', 'Capacity Mgmt'), perms: [true, false, true, false]},
-      {name: TB.ops._t('审核管理', 'Review Mgmt'), perms: [true, false, false, false]},
-      {name: TB.ops._t('系统管理', 'System Admin'), perms: [true, true, true, true]},
-      {name: TB.ops._t('审计与日志', 'Audit & Logs'), perms: [true, false, false, false]},
-      {name: TB.ops._t('公告管理', 'Announcements'), perms: [true, true, true, false]},
-    ];
-    var permLabels = [TB.t('all') === '全部' ? '查看' : 'View', TB.t('create'), TB.t('edit'), TB.t('delete')];
-
-    var matrixHtml = '<table class="data-table"><thead><tr><th>'+TB.ops._t('模块', 'Module')+'</th>';
-    permLabels.forEach(function(p) { matrixHtml += '<th style="text-align:center">'+p+'</th>'; });
-    matrixHtml += '</tr></thead><tbody>';
-    modules.forEach(function(m) {
-      matrixHtml += '<tr><td>'+m.name+'</td>';
-      m.perms.forEach(function(p) {
-        matrixHtml += '<td style="text-align:center"><input type="checkbox" class="form-checkbox" '+(p?'checked':'')+'></td>';
+    var section = function(portal){
+      var editable = role.portal === 'ops' && portal === 'ops';
+      var grants = editable ? TB.ops._roleDraft : role.grants;
+      var h = '<div class="font-bold mt-4 mb-2">' + portalName[portal]
+        + (editable ? '' : ' <span class="text-muted text-sm">' + t('（默认全量/无，不在此配置）','(default; not configurable here)') + '</span>') + '</div>';
+      (TB.data.permCatalog[portal] || []).forEach(function(g){
+        h += '<div class="text-muted text-sm mt-2 mb-2">' + TB.text(g.group) + '</div><div class="perm-grid">';
+        g.items.forEach(function(it){
+          var on = TB.ops._hasGrant(grants, portal, it.key);
+          h += editable
+            ? '<label class="form-checkbox perm-item"><input type="checkbox"' + (on ? ' checked' : '') + ' onchange="TB.ops.toggleRolePerm(\'' + portal + '\',\'' + it.key + '\')"><span>' + TB.text(it.label) + '</span></label>'
+            : '<div class="perm-item-ro">' + (on ? TB.ui.badge('✓', 'success') : TB.ui.badge('—', 'default')) + '<span>' + TB.text(it.label) + '</span></div>';
+        });
+        h += '</div>';
       });
-      matrixHtml += '</tr>';
-    });
-    matrixHtml += '</tbody></table>';
+      return h;
+    };
 
-    html += '<div class="flex gap-4" style="align-items:flex-start">';
-    html += sidebarHtml;
-    html += '<div style="flex:1">';
-    html += TB.ui.card(
-      TB.ops._t('权限配置', 'Permission Configuration'),
-      matrixHtml,
-      '<button class="btn btn-sm btn-primary" onclick="TB.ops.savePermissions()">'+TB.t('save')+'</button>'
-    );
-    html += '</div>';
-    html += '</div>';
+    var holders = TB.ops._roleHolders(role);
+    var right = TB.ui.card(t('功能权限（分端 → 分功能）','Function Permissions (portal → function)'),
+      section('member') + section('issuer') + section('ops'),
+      role.portal === 'ops'
+        ? '<button class="btn btn-sm btn-primary" onclick="TB.ops.saveRolePerms()">' + TB.t('save') + '</button>'
+        : '<div class="form-hint">' + t('该角色权限为其门户全量功能，成员/发行端内部的子账号权限在各自门户的账号管理中维护。','This role holds all functions of its portal; sub-account permissions inside that portal are maintained in its own account management.') + '</div>');
+    right += TB.ui.card(t('角色成员','Role Holders'), holders.length ? TB.ui.table({
+      columns: [
+        {key: 'name', label: t('账号名','Account')},
+        {key: 'email', label: TB.t('lbl.email')},
+        {key: 'org', label: t('所属机构','Organization')},
+        {key: 'status', label: TB.t('status'), render: function(r){ return TB.ui.statusBadge(r.status); }},
+      ],
+      data: holders,
+      paginate: false,
+    }) : TB.ui.emptyState('📋', t('暂无成员','No holders yet')));
 
-    /* Bottom: role members table */
-    html += TB.ui.card(
-      TB.ops._t('角色成员', 'Role Members'),
-      TB.ui.table({
-        columns: [
-          {key: 'name', label: TB.ops._t('账号名', 'Account Name')},
-          {key: 'email', label: TB.t('lbl.email')},
-          {key: 'role', label: TB.t('lbl.role')},
-          {key: 'org', label: TB.ops._t('所属机构', 'Organization')},
-          {key: 'status', label: TB.t('status'), render: function(r) { return TB.ui.statusBadge(r.status); }},
-        ],
-        data: TB.data.accounts.filter(function(a) { return a.org === 'TokenBank'; }),
-        actions: [
-          {label: TB.ops._t('编辑角色', 'Edit Role'), onClick: 'TB.ops.openEditRole', type: 'text'},
-          {label: TB.ops._t('分配成员', 'Assign Member'), onClick: 'TB.ops.openAssignMember', type: 'text'},
-          {label: TB.t('delete'), onClick: 'TB.ops.openDeleteRole', type: 'danger'},
-        ],
-      })
-    );
-
+    html += '<div class="flex gap-4" style="align-items:flex-start">' + sidebarHtml + '<div style="flex:1;min-width:0">' + right + '</div></div>';
     return html;
   },
 
@@ -1337,7 +1316,6 @@ TB.router.register('ops', {
     var flowTypes = [
       {id: 'F1', name: TB.ops._t('发行审核', 'Issuance Review'), enabled: true},
       {id: 'F2', name: TB.ops._t('销毁审核', 'Burn Review'), enabled: true},
-      {id: 'F3', name: TB.ops._t('成员入驻审核', 'Member Onboarding Review'), enabled: true},
       {id: 'F4', name: TB.ops._t('账号激活审核', 'Account Activation Review'), enabled: false},
     ];
 
