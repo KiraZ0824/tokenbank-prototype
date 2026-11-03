@@ -181,10 +181,14 @@ TB.pages.issuer.submitIssuance = function(){
     TB.utils.toast(t('请先勾选发行信息责任确认','Please confirm the responsibility declaration'), 'error');
     return;
   }
-  TB.pages.issuer._persistIssuance('approving');
+  var row = TB.pages.issuer._persistIssuance('approving');
   TB.pages.issuer._issuance = null;
   TB.ui.closeModal();
-  TB.utils.toast(t('已提交发行审批','Issuance submitted for approval'), 'success');
+  var flow = TB.pages.issuer.flowByType('issuance');
+  var task = flow && flow.enabled ? TB.pages.issuer._startApproval('issuance', row.id, TB.state.user ? TB.state.user.name : '', 'High') : null;
+  TB.utils.toast(task
+    ? t('已提交发行审批，当前节点：','Submitted for issuance approval; current node: ') + TB.pages.issuer.taskNodeName(task)
+    : t('已提交（该类审批流程已停用，无需机构内审批）','Submitted (this approval flow is disabled; no internal review required)'), 'success');
   TB.router.render();
 };
 
@@ -499,9 +503,7 @@ TB.pages.issuer._submitBurnDone = function(id){
   var brnId = 'BRN-' + String(TB.data.burnRequests.length + 1).padStart(3, '0');
   TB.data.burnRequests.unshift({ id:brnId, series:row.series, applicant:user, applyTime:TB.utils.nowET(), node:'Maker', status:'pending', completeTime:'-', amount:row.redeemedAmt });
   var flow = TB.pages.issuer.flowByType('burn');
-  if(flow && flow.nodes.length){
-    TB.data.approvalTasks.unshift({ id:'APR-' + String(TB.data.approvalTasks.length + 1).padStart(3, '0'), flow:flow.id, ref:brnId, applicant:user, submittedAt:TB.utils.nowET(), nodeOrder:1, approvers:flow.nodes[0].approvers.slice(), status:'pending', priority:'High', completedAt:'-', decidedBy:'-', trail:[] });
-  }
+  if(flow && flow.nodes.length && flow.enabled) TB.pages.issuer._startApproval('burn', brnId, user, 'High');
   conf.status = 'submitted';
   conf.submittedAt = TB.utils.nowET();
   TB.utils.toast(t('已发起销毁审批','Burn approval submitted'), 'success');
@@ -571,30 +573,50 @@ TB.pages.issuer.taskNodeName = function(task){
 };
 TB.pages.issuer.selectFlow = function(id){ TB.pages.issuer._flowSel = id; TB.router.render(); };
 
+/* 审核流程状态机（补充规格第五章 §6）：草稿 → 待<节点>审核 →（节点通过后自动流转下一节点）→ 已审批通过 / 已拒绝 / 已退回。
+ * 会签节点在全部审批人签署前停留在「<节点>会签中 (已签/应签)」。 */
+TB.pages.issuer.taskState = function(task){
+  var t = TB.pages.issuer.t;
+  var flow = TB.pages.issuer.flowById(task.flow);
+  var node = flow && flow.nodes[task.nodeOrder - 1];
+  var nodeName = node ? TB.text(node.name) : t('审核','Review');
+  if(task.status === 'approved') return {key:'approved', label:t('已审批通过','Approved'), tone:'success', node:nodeName};
+  if(task.status === 'rejected') return {key:'rejected', label:t('已拒绝','Rejected'), tone:'error', node:nodeName};
+  if(task.status === 'returned') return {key:'returned', label:t('已退回','Returned'), tone:'orange', node:nodeName};
+  var signed = (task.nodeApprovals || []).length;
+  var need = node ? node.approvers.length : 1;
+  if(node && node.mode === 'all' && signed > 0 && signed < need){
+    return {key:'countersign', label:t(nodeName+'会签中','Co-signing · '+nodeName)+' ('+signed+'/'+need+')', tone:'info', node:nodeName, signed:signed, need:need};
+  }
+  return {key:'nodePending', label:t('待'+nodeName,'Awaiting '+nodeName), tone:'info', node:nodeName, signed:signed, need:need};
+};
+
 /* 审核中心数据源：审核流程任务 + 业务待办，统一归为待处理 / 已处理 */
 TB.pages.issuer.reviewItems = function(){
   var t = TB.pages.issuer.t;
   var user = TB.state.user ? TB.state.user.name : '';
+  var bizTone = {pending:'orange', processed:'default', approved:'success', rejected:'error', returned:'orange'};
   var items = [];
   TB.data.approvalTasks.forEach(function(k){
     var flow = TB.pages.issuer.flowById(k.flow);
-    var result = k.status === 'pending'
-      ? (k.approvers.indexOf(user) >= 0 ? t('待我审核','awaiting my review') : t('待他人审核','awaiting other approvers'))
-      : (k.status === 'approved' ? t('已通过','approved') : t('已驳回','rejected'));
+    var st = TB.pages.issuer.taskState(k);
+    var iSigned = (k.nodeApprovals || []).indexOf(user) >= 0;
     items.push({
       id:k.id, source:t('审核流程','Approval Flow'),
       type:flow ? TB.text(flow.name) : t('审核','Review'),
-      desc:k.ref + ' · ' + result,
+      desc:k.ref,
       status:k.status,
+      statusLabel:st.label, statusTone:st.tone,
       handler:k.decidedBy && k.decidedBy !== '-' ? k.decidedBy : k.approvers.join(', '),
       time:k.status === 'pending' ? k.submittedAt : k.completedAt,
       route:k.flow === 'AF-BURN' ? '#/burn' : '#/series',
-      mine:k.status === 'pending' && k.approvers.indexOf(user) >= 0,
+      mine:k.status === 'pending' && !iSigned && k.approvers.indexOf(user) >= 0,
       taskId:k.id
     });
   });
   TB.data.issuerTasks.forEach(function(x){
-    items.push({ id:x.id, source:t('业务待办','Business Task'), type:TB.text(x.type), desc:TB.text(x.desc), status:x.status, handler:typeof x.handler === 'object' ? TB.text(x.handler) : x.handler, time:x.time, route:x.route, mine:false, taskId:null });
+    var label = TB.i18n['st.' + x.status] ? TB.t('st.' + x.status) : TB.utils.enumLabel(x.status);
+    items.push({ id:x.id, source:t('业务待办','Business Task'), type:TB.text(x.type), desc:TB.text(x.desc), status:x.status, statusLabel:label, statusTone:bizTone[x.status] || 'default', handler:typeof x.handler === 'object' ? TB.text(x.handler) : x.handler, time:x.time, route:x.route, mine:false, taskId:null });
   });
   items.sort(function(a, b){ return a.time < b.time ? 1 : -1; });
   return items;
@@ -663,21 +685,6 @@ TB.pages.issuer._deleteNodeDone = function(nodeId){
   TB.router.render();
 };
 
-TB.pages.issuer.moveNode = function(nodeId, dir){
-  var flow = TB.pages.issuer.flowById(TB.pages.issuer._flowSel);
-  if(!flow) return;
-  var idx = flow.nodes.findIndex(function(n){ return n.id === nodeId; });
-  var target = idx + dir;
-  if(idx < 0 || target < 0 || target >= flow.nodes.length) return;
-  var tmp = flow.nodes[idx]; flow.nodes[idx] = flow.nodes[target]; flow.nodes[target] = tmp;
-  flow.nodes.forEach(function(n, i){ n.order = i + 1; });
-  flow.updatedAt = TB.pages.issuer.now();
-  TB.router.render();
-};
-
-TB.pages.issuer._moveUp = function(nodeId){ TB.pages.issuer.moveNode(nodeId, -1); };
-TB.pages.issuer._moveDown = function(nodeId){ TB.pages.issuer.moveNode(nodeId, 1); };
-
 TB.pages.issuer.saveFlowStatus = function(){
   var t = TB.pages.issuer.t;
   var flow = TB.pages.issuer.flowById(TB.pages.issuer._flowSel);
@@ -699,17 +706,59 @@ TB.pages.issuer.openDecide = function(taskId, decision){
   var task = TB.pages.issuer.taskById(taskId);
   if(!task) return;
   var flow = TB.pages.issuer.flowById(task.flow);
+  var act = {
+    approved:{title:t('通过审批','Approve'), btn:TB.t('approve'), cls:'btn-primary'},
+    returned:{title:t('退回发起人','Return to Initiator'), btn:t('退回','Return'), cls:''},
+    rejected:{title:t('拒绝申请','Reject'), btn:TB.t('reject'), cls:'btn-danger'}
+  }[decision] || {title:t('审核','Review'), btn:TB.t('confirm'), cls:'btn-primary'};
+  var st = TB.pages.issuer.taskState(task);
   TB.ui.modal({
-    title: decision === 'approved' ? t('通过审批','Approve') : t('驳回申请','Reject'),
+    title: act.title,
     body: TB.ui.descList([
       {label:t('编号','ID'), value:task.id},
       {label:t('关联单号','Reference'), value:task.ref},
       {label:TB.t('lbl.flow'), value:flow ? TB.text(flow.name) : task.flow},
       {label:TB.t('lbl.node'), value:TB.pages.issuer.taskNodeName(task)},
-      {label:TB.t('lbl.approvers'), value:task.approvers.join(', ')}
-    ]) + TB.ui.formField({label:t('审批意见','Remarks'), name:'decide_remarks', type:'textarea', placeholder:t('驳回时必填','Required when rejecting')}),
-    footer: '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button><button class="btn '+(decision === 'approved' ? 'btn-primary' : 'btn-danger')+'" onclick="TB.pages.issuer.confirmDecide(\''+taskId+'\',\''+decision+'\')">'+(decision === 'approved' ? TB.t('approve') : TB.t('reject'))+'</button>'
+      {label:TB.t('status'), value:TB.ui.badge(st.label, st.tone)},
+      {label:TB.t('lbl.approvers'), value:task.approvers.join(', ') + (flow && flow.nodes[task.nodeOrder - 1] ? '（' + TB.pages.issuer.modeLabel(flow.nodes[task.nodeOrder - 1].mode) + '）' : '')}
+    ]) + TB.ui.formField({label:t('审批意见','Remarks'), name:'decide_remarks', type:'textarea', placeholder:t('退回或拒绝时必填','Required when returning or rejecting')})
+      + (decision === 'returned' ? '<div class="form-hint">'+t('退回后申请回到发起人，修改并重新提交将从首个审核节点重新流转。','After a return the request goes back to the initiator; resubmission restarts the flow from the first node.')+'</div>' : ''),
+    footer: '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button><button class="btn '+act.cls+'" onclick="TB.pages.issuer.confirmDecide(\''+taskId+'\',\''+decision+'\')">'+act.btn+'</button>'
   });
+};
+
+/* 退回：统一退回发起人修改（补充规格 §6 Returned），关联业务对象回到可重新提交状态 */
+TB.pages.issuer._returnToInitiator = function(task){
+  var s = TB.data.series.find(function(x){ return x.id === task.ref; });
+  if(s && (s.status === 'approving' || s.status === 'minting')) s.status = 'draft';
+  var brn = TB.data.burnRequests.find(function(x){ return x.id === task.ref; });
+  if(brn && brn.status === 'pending'){
+    brn.status = 'returned';
+    var conf = TB.data.burnConfirms.find(function(c){ return c.series === brn.series && c.status === 'submitted'; });
+    if(conf) conf.status = 'pending';
+  }
+};
+
+/* 提交/重新提交审批：已在流转中则复用；已退回或已拒绝的按状态机回到首个审核节点；否则新建任务 */
+TB.pages.issuer._startApproval = function(flowType, ref, applicant, priority){
+  var flow = TB.pages.issuer.flowByType(flowType);
+  if(!flow || !flow.nodes.length) return null;
+  var existing = TB.data.approvalTasks.find(function(x){ return x.ref === ref && x.flow === flow.id; });
+  if(existing && existing.status === 'pending') return existing;
+  if(existing && (existing.status === 'returned' || existing.status === 'rejected')){
+    existing.status = 'pending';
+    existing.nodeOrder = 1;
+    existing.approvers = flow.nodes[0].approvers.slice();
+    existing.nodeApprovals = [];
+    existing.applicant = applicant;
+    existing.submittedAt = TB.utils.nowET();
+    existing.completedAt = '-';
+    existing.decidedBy = '-';
+    return existing;
+  }
+  var task = { id:'APR-' + String(TB.data.approvalTasks.length + 1).padStart(3, '0'), flow:flow.id, ref:ref, applicant:applicant, submittedAt:TB.utils.nowET(), nodeOrder:1, approvers:flow.nodes[0].approvers.slice(), status:'pending', priority:priority || 'Medium', completedAt:'-', decidedBy:'-', nodeApprovals:[], trail:[] };
+  TB.data.approvalTasks.unshift(task);
+  return task;
 };
 
 TB.pages.issuer.confirmDecide = function(taskId, decision){
@@ -718,28 +767,46 @@ TB.pages.issuer.confirmDecide = function(taskId, decision){
   if(!task) return;
   var flow = TB.pages.issuer.flowById(task.flow);
   var remarks = TB.utils.getInputVal('decide_remarks');
-  if(decision === 'rejected' && !remarks){
-    TB.utils.toast(t('驳回时必须填写原因','Reason is required to reject'), 'error');
+  if(decision !== 'approved' && !remarks){
+    TB.utils.toast(t('退回或拒绝时必须填写原因','A reason is required to return or reject'), 'error');
     return;
   }
   var user = TB.state.user ? TB.state.user.name : '';
   var node = flow && flow.nodes[task.nodeOrder - 1];
   task.trail = task.trail || [];
   task.trail.push({node: node ? node.name : {en:'-',zh:'-'}, approver:user, decision:decision, time:TB.pages.issuer.now(), remarks:remarks});
+  var msg, tone = 'success';
   if(decision === 'rejected'){
     task.status = 'rejected';
     task.decidedBy = user;
     task.completedAt = TB.pages.issuer.now();
-  } else if(flow && task.nodeOrder < flow.nodes.length){
-    task.nodeOrder = task.nodeOrder + 1;
-    task.approvers = flow.nodes[task.nodeOrder - 1].approvers.slice();
-  } else {
-    task.status = 'approved';
+    msg = t('已拒绝','Rejected');
+    tone = 'error';
+  } else if(decision === 'returned'){
+    task.status = 'returned';
     task.decidedBy = user;
     task.completedAt = TB.pages.issuer.now();
+    TB.pages.issuer._returnToInitiator(task);
+    msg = t('已退回发起人，可修改后重新提交','Returned to the initiator for revision and resubmission');
+  } else {
+    task.nodeApprovals = task.nodeApprovals || [];
+    if(task.nodeApprovals.indexOf(user) < 0) task.nodeApprovals.push(user);
+    if(node && node.mode === 'all' && task.nodeApprovals.length < node.approvers.length){
+      msg = t('已记录会签','Co-signature recorded') + ' (' + task.nodeApprovals.length + '/' + node.approvers.length + ')';
+    } else if(flow && task.nodeOrder < flow.nodes.length){
+      task.nodeOrder = task.nodeOrder + 1;
+      task.approvers = flow.nodes[task.nodeOrder - 1].approvers.slice();
+      task.nodeApprovals = [];
+      msg = t('本节点已通过，自动流转至','Node approved; auto-routed to ') + TB.text(flow.nodes[task.nodeOrder - 1].name);
+    } else {
+      task.status = 'approved';
+      task.decidedBy = user;
+      task.completedAt = TB.pages.issuer.now();
+      msg = t('已审批通过','Approved');
+    }
   }
   TB.ui.closeModal();
-  TB.utils.toast(decision === 'approved' ? t('已通过','Approved') : t('已驳回','Rejected'), 'success');
+  TB.utils.toast(msg, tone);
   TB.router.render();
 };
 
@@ -748,8 +815,9 @@ TB.pages.issuer.viewApprovalDetail = function(taskId){
   var task = TB.pages.issuer.taskById(taskId);
   if(!task) return;
   var flow = TB.pages.issuer.flowById(task.flow);
-  var statusBadge = task.status === 'pending' ? TB.ui.badge(t('待审批','Pending'),'orange')
-    : (task.status === 'approved' ? TB.ui.badge(t('已通过','Approved'),'success') : TB.ui.badge(t('已驳回','Rejected'),'error'));
+  var state = TB.pages.issuer.taskState(task);
+  var statusBadge = TB.ui.badge(state.label, state.tone);
+  var node = flow && flow.nodes[task.nodeOrder - 1];
   var info = TB.ui.descList([
     {label:t('编号','ID'), value:task.id},
     {label:TB.t('lbl.flow'), value:flow ? TB.text(flow.name) : task.flow},
@@ -757,6 +825,8 @@ TB.pages.issuer.viewApprovalDetail = function(taskId){
     {label:TB.t('lbl.applicant'), value:task.applicant},
     {label:t('提交时间','Submitted'), value:task.submittedAt},
     {label:TB.t('status'), value:statusBadge},
+    {label:TB.t('lbl.node'), value:TB.pages.issuer.taskNodeName(task) + (node ? '（' + TB.pages.issuer.modeLabel(node.mode) + '）' : '')},
+    {label:t('会签进度','Co-sign Progress'), value:node && node.mode === 'all' ? (task.nodeApprovals || []).length + ' / ' + node.approvers.length : t('不适用（或签）','N/A (OR-sign)')},
     {label:TB.t('lbl.decidedBy'), value:task.decidedBy || '-'},
     {label:TB.t('lbl.completedAt'), value:task.completedAt || '-'}
   ]);
@@ -765,12 +835,13 @@ TB.pages.issuer.viewApprovalDetail = function(taskId){
     stepsHtml = '<div class="mb-4">' + TB.ui.stepIndicator(flow.nodes.map(function(n, i){
       var st = 'waiting';
       if(i < task.nodeOrder - 1) st = 'done';
-      else if(i === task.nodeOrder - 1) st = task.status === 'pending' ? 'pending' : 'done';
+      else if(i === task.nodeOrder - 1) st = task.status === 'approved' ? 'done' : 'pending';
       return {label:TB.text(n.name), status:st};
     })) + '</div>';
   }
   var trailHtml = (task.trail || []).map(function(tr){
-    var dec = tr.decision === 'approved' ? TB.ui.badge(t('通过','Approved'),'success') : TB.ui.badge(t('驳回','Rejected'),'error');
+    var dec = tr.decision === 'approved' ? TB.ui.badge(t('通过','Approved'),'success')
+      : (tr.decision === 'returned' ? TB.ui.badge(t('退回','Returned'),'orange') : TB.ui.badge(t('拒绝','Rejected'),'error'));
     return '<div class="timeline-item completed"><div class="timeline-time">'+TB.utils.dt(tr.time)+'</div><div class="timeline-title">'+TB.text(tr.node)+' · '+tr.approver+'</div><div class="timeline-desc">'+dec+(tr.remarks ? ' — '+tr.remarks : '')+'</div></div>';
   }).join('');
   var timeline = trailHtml ? '<div class="timeline">'+trailHtml+'</div>' : TB.ui.emptyState('⏳', t('暂无审批记录','No records yet'));
@@ -788,11 +859,13 @@ TB.router.register('issuer', {
     var held = TB.data.series.reduce(function(sum, s){ return sum + (s.faceTotal - s.faceAvailable); }, 0);
     var pending = TB.pages.issuer.reviewItems().filter(function(x){ return x.status === 'pending'; });
     var tasks = pending.slice(0, 6);
-    var html = TB.utils.contentHeader(TB.pages.issuer.t('发行方首页','Issuer Dashboard'), '<button class="btn btn-primary" onclick="TB.pages.issuer.toast(\''+TB.pages.issuer.t('刷新中...','Refreshing...')+'\')">'+TB.t('refresh')+'</button>');
+    var html = TB.utils.contentHeader(TB.pages.issuer.t('发行方首页','Issuer Dashboard'));
     html += '<div class="stat-grid">';
     html += TB.ui.statCard(TB.pages.issuer.t('活跃Series','Active Series'), String(active.length), '+1', 'up');
     html += TB.ui.statCard(TB.pages.issuer.t('总发行量','Total Issuance'), TB.utils.moneyShort(total));
     html += TB.ui.statCard(TB.pages.issuer.t('卖方持仓','Seller Positions'), TB.utils.moneyShort(held));
+    var reserve = TB.data.emtReserve;
+    html += TB.ui.statCard(TB.pages.issuer.t('EMT余额','EMT Balance')+TB.utils.note(TB.pages.issuer.t('EMT 储备可用余额；次日赎回 Cover 不足时由 Bison 在收盘后补足。','Available EMT reserve balance; Bison tops it up after the close when the next-day cover is short.')), TB.utils.moneyShort(reserve.available), TB.pages.issuer.t('冻结 ','Frozen ') + TB.utils.moneyShort(reserve.frozen));
     var emt = TB.pages.issuer.emtCoverSummary();
     html += TB.ui.statCard(TB.pages.issuer.t('EMT Cover需求','EMT Cover Required')+TB.utils.note(TB.pages.issuer.emtNoteRequired()), TB.utils.moneyShort(emt.required), TB.pages.issuer.t('次日赎回 ','Next-day ') + TB.utils.moneyShort(emt.redemption), 'up');
     html += TB.ui.statCard(TB.pages.issuer.t('Cover缺口','Cover Gap')+TB.utils.note(TB.pages.issuer.emtNoteGap()), TB.utils.moneyShort(emt.gap), emt.gap > 0 ? TB.pages.issuer.t('待补充','Top-up pending') : TB.pages.issuer.t('已覆盖','Covered'), emt.gap > 0 ? 'down' : 'up');
@@ -825,7 +898,7 @@ TB.router.register('issuer', {
         {key:'source', label:t('来源','Source')},
         {key:'type', label:t('类型','Type')},
         {key:'desc', label:t('事项','Item')},
-        {key:'status', label:TB.t('status'), render:function(r){ return TB.ui.statusBadge(r.status); }},
+        {key:'status', label:TB.t('status'), render:function(r){ return TB.ui.badge(r.statusLabel, r.statusTone); }},
         {key:'handler', label:t('处理人','Handler')},
         {key:'time', label:isPending ? t('提交时间','Submitted') : t('完成时间','Completed')},
         {key:'go', label:TB.t('actions'), render:function(r){
@@ -833,11 +906,12 @@ TB.router.register('issuer', {
             ? '<span class="tag-link" onclick="TB.pages.issuer.viewApprovalDetail(\''+r.taskId+'\')">'+t('详情','Detail')+'</span>'
             : '<span class="tag-link" onclick="TB.router.navigate(\''+r.route+'\')">'+t('查看','View')+'</span>';
           if(!isPending) return detail;
-          if(r.taskId && r.mine){
+          if(r.taskId){
+            if(!r.mine) return detail;
             return '<button class="btn btn-sm btn-primary" onclick="TB.pages.issuer.openDecide(\''+r.taskId+'\',\'approved\')">'+TB.t('approve')+'</button> '+
+              '<button class="btn btn-sm" onclick="TB.pages.issuer.openDecide(\''+r.taskId+'\',\'returned\')">'+t('退回','Return')+'</button> '+
               '<button class="btn btn-sm btn-danger" onclick="TB.pages.issuer.openDecide(\''+r.taskId+'\',\'rejected\')">'+TB.t('reject')+'</button> '+detail;
           }
-          if(r.taskId) return '<span class="text-muted text-sm">'+t('等待他人审批','Waiting for others')+'</span> '+detail;
           return '<span class="tag-link" onclick="TB.router.navigate(\''+r.route+'\')">'+t('去处理','Handle')+'</span>';
         }}
       ], data: list });
@@ -1094,23 +1168,15 @@ TB.router.register('issuer', {
         ],
         data: flow.nodes,
         actions:[
-          {label:'↑', onClick:'TB.pages.issuer._moveUp'},
-          {label:'↓', onClick:'TB.pages.issuer._moveDown'},
           {label:t('配置审批人','Approvers'), onClick:'TB.pages.issuer.openNodeModal', type:'text'},
           {label:TB.t('delete'), onClick:'TB.pages.issuer.deleteNode', type:'danger'}
         ]
       });
-    var uniqueApprovers = flow.nodes.reduce(function(arr, n){ n.approvers.forEach(function(a){ if(arr.indexOf(a) < 0) arr.push(a); }); return arr; }, []);
     var rightHtml = TB.ui.card(t('审批节点配置','Approval Node Configuration'), nodeBody, '<button class="btn btn-sm btn-primary" onclick="TB.pages.issuer.openNodeModal()">'+t('新增节点','Add Node')+'</button>');
     rightHtml += TB.ui.card(t('流程状态','Flow Status'),
       '<label class="form-checkbox"><input type="checkbox" id="flow_enabled"'+(flow.enabled ? ' checked' : '')+'> '+t('启用该审批流程','Enable this approval flow')+'</label>'+
       '<div class="form-hint">'+t('停用后，该类业务申请提交时不再经过机构内部审批。','When disabled, this type of request skips internal approval on submission.')+'</div>'+
       '<div class="mt-2"><button class="btn btn-primary btn-sm" onclick="TB.pages.issuer.saveFlowStatus()">'+TB.t('save')+'</button></div>');
-    rightHtml += TB.ui.card(t('流程概览','Flow Overview'), TB.ui.descList([
-      {label:TB.t('time'), value:flow.updatedAt},
-      {label:t('节点数','Nodes'), value:String(flow.nodes.length)},
-      {label:t('涉及审批人数','Approvers Involved'), value:String(uniqueApprovers.length)}
-    ]));
     html += '<div class="flex gap-4" style="align-items:flex-start">'+listHtml+'<div style="flex:1;min-width:0">'+rightHtml+'</div></div>';
     return html;
   }

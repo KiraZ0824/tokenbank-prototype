@@ -32,7 +32,7 @@ TB.i18n = {
   'st.draft':{en:'Draft',zh:'草稿'},'st.pending':{en:'Pending',zh:'待处理'},'st.active':{en:'Active',zh:'活跃'},
   'st.suspended':{en:'Suspended',zh:'暂停'},'st.completed':{en:'Completed',zh:'已完成'},'st.failed':{en:'Failed',zh:'失败'},
   'st.open':{en:'Open',zh:'开放中'},'st.closed':{en:'Closed',zh:'停止购买'},'st.approved':{en:'Approved',zh:'已通过'},
-  'st.rejected':{en:'Rejected',zh:'已驳回'},'st.minting':{en:'Minting',zh:'铸币中'},'st.minted':{en:'Minted',zh:'已铸币'},
+  'st.rejected':{en:'Rejected',zh:'已拒绝'},'st.returned':{en:'Returned',zh:'已退回'},'st.minting':{en:'Minting',zh:'铸币中'},'st.minted':{en:'Minted',zh:'已铸币'},
   'st.maturity':{en:'Maturity',zh:'到期'},'st.checkout':{en:'Checkout',zh:'赎回中'},'st.burned':{en:'Burned',zh:'已销毁'},
   'st.approving':{en:'Under Approval',zh:'审批中'},
   'st.settled':{en:'Settled',zh:'已结算'},'st.frozen':{en:'Frozen',zh:'已冻结'},'st.cancelled':{en:'Cancelled',zh:'已取消'},
@@ -246,7 +246,7 @@ TB.data = {
     {id:'R-UST-2026-012',name:'R-UST Bond Series 2026-012',cusip:'912810RE3',isin:'US912810RE31',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2027-08-09',faceTotal:32000000,faceAvailable:0,sellerYield:0.0590,refYield:0.0540,bpSpread:50,markPrice:0.9958,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-10-28 10:20:00',quoteValidUntil:'2026-10-28 10:25:00',valuationDate:'2026-10-28',status:'closed',createdAt:'2026-10-21'},
     {id:'R-UST-2026-013',name:'R-UST Bond Series 2026-013',cusip:'912810RF1',isin:'US912810RF18',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2027-09-13',faceTotal:14000000,faceAvailable:3400000,sellerYield:0.0535,refYield:0.0485,bpSpread:50,markPrice:0.9988,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-11-02 12:10:00',quoteValidUntil:'2026-11-02 12:15:00',valuationDate:'2026-11-02',status:'open',createdAt:'2026-11-02'},
     {id:'R-UST-2026-014',name:'R-UST Bond Series 2026-014',cusip:'912810RG9',isin:'US912810RG97',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2027-10-11',faceTotal:36000000,faceAvailable:0,sellerYield:0.0605,refYield:0.0555,bpSpread:50,markPrice:0.9952,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-10-27 09:45:00',quoteValidUntil:'2026-10-27 09:50:00',valuationDate:'2026-10-27',status:'closed',createdAt:'2026-10-15'},
-    {id:'R-UST-2026-015',name:'R-UST Bond Series 2026-015',cusip:'912810RH7',isin:'US912810RH75',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2027-11-08',faceTotal:20000000,faceAvailable:20000000,sellerYield:0.0598,refYield:0.0548,bpSpread:50,markPrice:0.9955,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-11-02 09:30:00',quoteValidUntil:'2026-11-02 09:35:00',valuationDate:'2026-11-02',status:'draft',createdAt:'2026-11-02'},
+    {id:'R-UST-2026-015',name:'R-UST Bond Series 2026-015',cusip:'912810RH7',isin:'US912810RH75',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2027-11-08',faceTotal:20000000,faceAvailable:20000000,sellerYield:0.0598,refYield:0.0548,bpSpread:50,markPrice:0.9955,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-11-02 09:30:00',quoteValidUntil:'2026-11-02 09:35:00',valuationDate:'2026-11-02',status:'approving',createdAt:'2026-11-02'},
     {id:'R-UST-2026-016',name:'R-UST Bond Series 2026-016',cusip:'912810RJ3',isin:'US912810RJ33',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2027-12-13',faceTotal:28000000,faceAvailable:21400000,sellerYield:0.0572,refYield:0.0522,bpSpread:50,markPrice:0.9969,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-11-02 11:20:00',quoteValidUntil:'2026-11-02 11:25:00',valuationDate:'2026-11-02',status:'open',createdAt:'2026-11-01'},
     {id:'R-UST-2026-017',name:'R-UST Bond Series 2026-017',cusip:'912810RK1',isin:'US912810RK16',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2028-01-10',faceTotal:34000000,faceAvailable:29800000,sellerYield:0.0588,refYield:0.0538,bpSpread:50,markPrice:0.9961,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-11-02 13:05:00',quoteValidUntil:'2026-11-02 13:10:00',valuationDate:'2026-11-02',status:'open',createdAt:'2026-11-02'},
     {id:'R-UST-2026-018',name:'R-UST Bond Series 2026-018',cusip:'912810RL9',isin:'US912810RL99',issuer:'Bison Bank',custodian:'Bison Bank',maturityDate:'2028-02-08',faceTotal:16000000,faceAvailable:16000000,sellerYield:0.0612,refYield:0.0562,bpSpread:50,markPrice:0.9948,windowDays:27,quoteProvider:'Bison Bank',priceSource:'Bison Treasury Desk',quoteTime:'2026-10-30 09:30:00',quoteValidUntil:'2026-10-30 09:35:00',valuationDate:'2026-10-30',status:'rejected',createdAt:'2026-10-29'},
@@ -392,20 +392,29 @@ TB.data = {
     ]},
     {id:'AF-BURN',type:'burn',name:{en:'Burn Approval',zh:'销毁申请审批'},enabled:true,updatedAt:'2026-10-18 09:30:00',nodes:[
       {id:'N1',order:1,name:{en:'Maker Review',zh:'Maker初审'},approvers:['Maria Garcia'],mode:'any'},
-      {id:'N2',order:2,name:{en:'Burn Review',zh:'销毁复核'},approvers:['James Wilson','Robert Taylor'],mode:'any'},
+      {id:'N2',order:2,name:{en:'Burn Review',zh:'销毁复核'},approvers:['James Wilson','Robert Taylor'],mode:'all'},
       {id:'N3',order:3,name:{en:'Final Approval',zh:'终审'},approvers:['James Wilson'],mode:'all'}
     ]}
   ],
   approvalTasks: [
-    {id:'APR-001',flow:'AF-BURN',ref:'BRN-002',applicant:'James Wilson',submittedAt:'2026-11-02 08:00:00',nodeOrder:2,approvers:['James Wilson','Robert Taylor'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',trail:[
-      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-11-02 08:30:00',remarks:'Documents complete'}
+    {id:'APR-001',flow:'AF-BURN',ref:'BRN-002',applicant:'James Wilson',submittedAt:'2026-11-02 08:00:00',nodeOrder:2,approvers:['James Wilson','Robert Taylor'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',nodeApprovals:['James Wilson'],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-11-02 08:30:00',remarks:'Documents complete'},
+      {node:{en:'Burn Review',zh:'销毁复核'},approver:'James Wilson',decision:'approved',time:'2026-11-02 09:10:00',remarks:'Redemption and reconciliation verified'}
     ]},
-    {id:'APR-002',flow:'AF-ISSU',ref:'R-UST-2026-007',applicant:'James Wilson',submittedAt:'2026-11-01 17:00:00',nodeOrder:2,approvers:['Robert Taylor'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',trail:[
+    {id:'APR-002',flow:'AF-ISSU',ref:'R-UST-2026-007',applicant:'James Wilson',submittedAt:'2026-11-01 17:00:00',nodeOrder:2,approvers:['Robert Taylor'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',nodeApprovals:[],trail:[
       {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-11-01 17:40:00',remarks:'OK'}
     ]},
-    {id:'APR-004',flow:'AF-ISSU',ref:'R-UST-2026-004',applicant:'Maria Garcia',submittedAt:'2026-10-27 10:00:00',nodeOrder:2,approvers:['Robert Taylor'],status:'rejected',priority:'Medium',completedAt:'2026-10-28 11:00:00',decidedBy:'Robert Taylor',trail:[
+    {id:'APR-003',flow:'AF-ISSU',ref:'R-UST-2026-015',applicant:'Maria Garcia',submittedAt:'2026-11-02 14:00:00',nodeOrder:3,approvers:['James Wilson','Linda Chen'],status:'pending',priority:'Medium',completedAt:'-',decidedBy:'-',nodeApprovals:[],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-11-02 14:20:00',remarks:'Product basics complete'},
+      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Robert Taylor',decision:'approved',time:'2026-11-02 16:05:00',remarks:'Risk disclosure v3 attached'}
+    ]},
+    {id:'APR-004',flow:'AF-ISSU',ref:'R-UST-2026-004',applicant:'Maria Garcia',submittedAt:'2026-10-27 10:00:00',nodeOrder:2,approvers:['Robert Taylor'],status:'rejected',priority:'Medium',completedAt:'2026-10-28 11:00:00',decidedBy:'Robert Taylor',nodeApprovals:[],trail:[
       {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-10-27 10:30:00',remarks:'OK'},
       {node:{en:'Compliance Review',zh:'合规复核'},approver:'Robert Taylor',decision:'rejected',time:'2026-10-28 11:00:00',remarks:'Risk disclosure version outdated'}
+    ]},
+    {id:'APR-005',flow:'AF-ISSU',ref:'R-UST-2026-018',applicant:'Linda Chen',submittedAt:'2026-10-30 09:20:00',nodeOrder:2,approvers:['Robert Taylor'],status:'returned',priority:'Medium',completedAt:'2026-10-30 15:40:00',decidedBy:'Robert Taylor',nodeApprovals:[],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-10-30 10:00:00',remarks:'OK'},
+      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Robert Taylor',decision:'returned',time:'2026-10-30 15:40:00',remarks:'Underlying CUSIP does not match the term sheet; returned to the initiator'}
     ]}
   ],
 };
