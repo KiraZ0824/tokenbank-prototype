@@ -16,6 +16,7 @@ TB.i18n = {
   'approve':{en:'Approve',zh:'通过'},'reject':{en:'Reject',zh:'拒绝'},'enable':{en:'Enable',zh:'启用'},'disable':{en:'Disable',zh:'停用'},
   'all':{en:'All',zh:'全部'},'unread':{en:'Unread',zh:'未读'},'read':{en:'Read',zh:'已读'},'actions':{en:'Actions',zh:'操作'},
   'status':{en:'Status',zh:'状态'},'type':{en:'Type',zh:'类型'},'time':{en:'Time',zh:'时间'},'date':{en:'Date',zh:'日期'},
+  'created':{en:'Created',zh:'创建时间'},'lastLogin':{en:'Last Login',zh:'最近登录'},
   'amount':{en:'Amount',zh:'金额'},'remarks':{en:'Remarks',zh:'备注'},'loading':{en:'Loading...',zh:'加载中...'},
   'noData':{en:'No data',zh:'暂无数据'},'total':{en:'Total',zh:'共'},'items':{en:'items',zh:'条'},
   'yes':{en:'Yes',zh:'是'},'no':{en:'No',zh:'否'},'optional':{en:'Optional',zh:'选填'},'required':{en:'Required',zh:'必填'},

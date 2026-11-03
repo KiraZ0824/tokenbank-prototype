@@ -478,11 +478,10 @@ TB.router.register('member', {
   },
   '/market': function(){
     var html = TB.utils.contentHeader(TB.pages.member.t('产品市场','Product Market'));
-    html += TB.ui.alert('info', TB.pages.member.t('产品市场仅展示开放购买和售罄产品，详情信息请点击卡片进入产品详情页查看。','The product market only shows open and sold-out products; click a card to view full details on the product detail page.'));
     html += TB.ui.filterBar({ fields:[
       {name:'status', label:TB.t('status'), type:'select', options:[{value:'',label:TB.t('all')},{value:'open',label:TB.utils.enumLabel('open')},{value:'closed',label:TB.utils.enumLabel('soldout')}]},
-      {name:'yield', label:TB.t('yield'), type:'select', options:[{value:'',label:TB.t('all')},{value:'high',label:TB.utils.enumLabel('high')},{value:'mid',label:TB.utils.enumLabel('mid')}]},
-      {name:'face', label:TB.t('faceValue'), type:'select', options:[{value:'',label:TB.t('all')},{value:'500k',label:'500K+'},{value:'1m',label:'1M+'}]},
+      {name:'yield', label:TB.t('lbl.yield'), type:'select', options:[{value:'',label:TB.t('all')},{value:'high',label:TB.utils.enumLabel('high')},{value:'mid',label:TB.utils.enumLabel('mid')}]},
+      {name:'face', label:TB.t('lbl.faceValue'), type:'select', options:[{value:'',label:TB.t('all')},{value:'500k',label:'500K+'},{value:'1m',label:'1M+'}]},
     ], exportBtn:true });
     html += '<div class="market-grid">'+TB.pages.member._marketCards()+'</div>';
     return html;
