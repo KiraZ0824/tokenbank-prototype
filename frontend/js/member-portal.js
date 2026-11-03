@@ -101,7 +101,7 @@ TB.pages.member._holdingsTabs = function(activeKey){
   ], content:{
     positions: TB.ui.table({ columns:[{label:TB.t('lbl.seriesId'),key:'series'},{label:TB.t('lbl.faceValue'),key:'face'},{label:TB.pages.member.t('Token数量','Tokens'),key:'tokens'},{label:TB.pages.member.t('起息日','Value Date'),key:'checkin'},{label:TB.pages.member.t('赎回日期','Redemption Date'),key:'maturity'},{label:TB.pages.member.t('当前估值','Current Value'),key:'valuation'},{label:TB.pages.member.t('预期收益','Expected Return'),key:'return'},{label:TB.t('status'),key:'status'}], data:TB.pages.member._holdingRows(), actions:[{label:TB.t('viewDetail'),onClick:'TB.pages.member.openHolding',type:'text'}] }),
     bookings: TB.ui.table({ columns:[{label:TB.pages.member.t('预定编号','Booking ID'),key:'id'},{label:TB.t('lbl.seriesId'),key:'series'},{label:TB.t('lbl.faceValue'),key:'face'},{label:TB.pages.member.t('起息日','Value Date'),key:'checkin'},{label:TB.pages.member.t('赎回日期','Redemption Date'),key:'checkout'},{label:TB.pages.member.t('窗口天数','Window Days'),key:'window'},{label:TB.pages.member.t('预估定金','Estimated Deposit'),key:'deposit'},{label:TB.pages.member.t('定金状态','Deposit Status'),key:'depositStatus',render:function(r){ return TB.pages.member._depositStatusLabel(r.depositStatus); }},{label:TB.t('status'),key:'status'},{label:TB.t('time'),key:'time'},{label:TB.t('actions'),key:'go',render:function(r){
-      var view = '<span class="tag-link" onclick="TB.utils.toast(\''+r.id+'\')">'+TB.t('viewDetail')+'</span>';
+      var view = '<span class="tag-link" onclick="TB.pages.member.openBooking(\''+r.id+'\')">'+TB.t('viewDetail')+'</span>';
       if(!r.cancellable) return view;
       return view+' <span class="tag-link" onclick="TB.pages.member.cancelBooking(\''+r.id+'\')">'+TB.pages.member.t('取消预订','Cancel Booking')+'</span>';
     }}], data:TB.pages.member._bookingRows() }),
@@ -567,6 +567,54 @@ TB.router.register('member', {
     html += TB.pages.member._holdingsTabs('bookings');
     return html;
   },
+  '/bookings/:bookingId': function(p){
+    var t = TB.pages.member.t;
+    var b = TB.data.bookings.find(function(x){ return x.id === p.bookingId; });
+    if(!b) return TB.utils.contentHeader(t('预定详情','Booking Detail')) + TB.ui.emptyState('🔍', TB.t('noData'));
+    var s = TB.data.series.find(function(x){ return x.id === b.series || x.id.replace(/^R-/, '') === b.series; }) || {};
+    var dep = b.deposit || 0;
+    var payable = Math.max(0, b.faceValue - dep);
+    var cancelled = b.status === 'cancelled';
+    var depStatus = b.depositStatus || (cancelled ? 'forfeited' : (b.status === 'pendingSettlement' ? 'applied' : 'held'));
+    var actions = '';
+    if(!cancelled && (b.status === 'bookingConfirmed' || b.status === 'depositTaken')){
+      actions += '<button class="btn" onclick="TB.pages.member.cancelBooking(\''+b.id+'\')">'+t('取消预订','Cancel Booking')+'</button>';
+    }
+    if(s.id) actions += '<button class="btn" onclick="TB.router.navigate(\'#/market/'+s.id+'\')">'+t('查看产品','View Product')+'</button>';
+    var html = TB.utils.contentHeader(t('预定详情','Booking Detail')+' · '+b.id, actions);
+    html += TB.ui.card(t('预定信息','Booking Info'), TB.ui.descList([
+      {label:t('预定编号','Booking ID'), value:b.id},
+      {label:TB.t('lbl.seriesId'), value:b.series},
+      {label:TB.t('lbl.productName'), value:TB.utils.esc(s.name || '-')},
+      {label:t('起息日','Value Date'), value:b.checkin},
+      {label:t('赎回日期','Redemption Date'), value:b.checkout},
+      {label:t('窗口天数','Window Days'), value:b.windowDays+' '+t('天','days')},
+      {label:TB.t('status'), value:TB.ui.statusBadge(b.status)},
+      {label:t('提交时间','Submitted'), value:b.submittedAt}
+    ]));
+    var funds = [
+      {label:t('预定面值','Booking Face Value'), value:TB.utils.money(b.faceValue)},
+      {label:t('预估定金','Estimated Deposit')+TB.utils.note(t('定金 = USB 20 交易手续费 + 面值 × 收益差 × 窗口天数 / 365，提交时从可用 EMT 扣收。','Deposit = USB 20 transaction fee + face × yield gap × window days / 365, charged from available EMT on submission.')), value:TB.utils.money(dep)},
+      {label:t('其中交易手续费','incl. Transaction Fee'), value:TB.utils.money(20)},
+      {label:t('起息日应付','Payable on Value Date')+TB.utils.note(t('起息日 cut-off 校验余额后自动扣款成交，金额 = 预定面值 − 已付定金。','At the value-date cut-off the balance is verified and settled automatically; the debit equals face value minus deposit paid.')), value:TB.utils.money(payable)},
+      {label:t('定金状态','Deposit Status'), value:TB.pages.member._depositStatusLabel(depStatus)}
+    ];
+    if(cancelled){
+      funds.push({label:t('取消时间','Cancelled At'), value:b.cancelledAt || '-'});
+      funds.push({label:t('定金处理','Deposit Outcome'), value:(depStatus === 'refunded' ? TB.ui.badge(t('全额退还','Refunded in full'),'success') : TB.ui.badge(t('没收全部定金','Deposit forfeited'),'error')) + (b.forfeitureReason ? ' · ' + TB.utils.esc(b.forfeitureReason) : '')});
+    }
+    html += TB.ui.card(t('资金与结算','Funds & Settlement'), TB.ui.descList(funds));
+    var tl = [{time:b.submittedAt, title:t('预定提交','Booking Submitted'), desc:t('预定已确认，窗口额度已冻结','Booking confirmed and window capacity locked'), status:'completed'}];
+    if(depStatus !== 'held' || b.status !== 'bookingConfirmed') tl.push({time:b.submittedAt, title:t('定金收取','Deposit Taken'), desc:t('定金 ','Deposit ') + TB.utils.money(dep) + t(' 已从可用 EMT 扣收',' deducted from available EMT'), status:'completed'});
+    if(cancelled){
+      tl.push({time:b.cancelledAt || '-', title:t('预定取消','Booking Cancelled'), desc:(depStatus === 'refunded' ? t('定金全额退还','Deposit refunded in full') : t('定金没收','Deposit forfeited')) + (b.forfeitureReason ? '（' + b.forfeitureReason + '）' : ''), status:'active'});
+    } else {
+      tl.push({time:b.checkin + ' 17:00:00', title:t('起息日结算','Value-date Settlement'), desc:t('cut-off 校验余额后自动扣款 ','Auto debit of ') + TB.utils.money(payable) + t(' 并执行 DVP 交割',' after the cut-off balance check, then DVP settlement'), status:'active'});
+      tl.push({time:b.checkout + ' 17:00:00', title:t('赎回','Redemption'), desc:t('系统在赎回日自动执行赎回','Auto redemption on the redemption date'), status:''});
+    }
+    html += TB.ui.card(t('操作时间线','Operation Timeline'), TB.ui.timeline(tl));
+    return html;
+  },
   '/holdings': function(){
     var html = TB.utils.contentHeader(TB.pages.member.t('持仓管理','Holdings Management'), '<button class="btn btn-primary" onclick="TB.utils.toast(\''+TB.t('export')+'\',\'info\')">'+TB.t('export')+'</button>');
     html += '<div class="stat-grid">'+TB.ui.statCard(TB.pages.member.t('总面值','Total Face'), TB.utils.moneyShort(8500000), '+1.2%', 'up')+TB.ui.statCard(TB.pages.member.t('当前估值','Current Value'), TB.utils.moneyShort(8490000), '+0.8%', 'up')+TB.ui.statCard(TB.pages.member.t('预期收益','Expected Return'), TB.utils.moneyShort(43850), '+0.3%', 'up')+TB.ui.statCard(TB.pages.member.t('持仓笔数','Positions'), '5', '+1', 'up')+'</div>';
@@ -713,6 +761,7 @@ TB.pages.member.confirmCancelBooking = function(id){
   TB.router.render();
 };
 TB.pages.member.openHolding = function(id){ TB.router.navigate('#/holdings/' + id); };
+TB.pages.member.openBooking = function(id){ TB.router.navigate('#/bookings/' + id); };
 TB.pages.member.editAccount = function(id){ TB.router.navigate('#/accounts/' + id + '/edit'); };
 TB.pages.member.manageAccountPermissions = function(id){ TB.router.navigate('#/accounts/' + id + '/permissions'); };
 TB.pages.member.toggleAccountStatus = function(id){
