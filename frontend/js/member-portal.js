@@ -111,7 +111,7 @@ TB.pages.member._holdingsTabs = function(activeKey){
 
 TB.pages.member._accountRows = function(){
   return TB.data.accounts.filter(function(a){ return a.org === 'Alpha Fund Management'; }).map(function(a){
-    return { id:a.id, name:a.name, email:a.email, role:a.role, status:TB.ui.statusBadge(a.status), created:a.created, lastLogin:a.lastLogin };
+    return { id:a.id, name:a.name, email:a.email, role:a.role, status:TB.ui.statusBadge(a.status), raw:a.status, created:a.created, lastLogin:a.lastLogin };
   });
 };
 
@@ -601,7 +601,10 @@ TB.router.register('member', {
   '/accounts': function(){
     var html = TB.utils.contentHeader(TB.pages.member.t('子账号列表','Sub-Accounts'), '<button class="btn btn-primary" onclick="TB.router.navigate(\'#\/accounts\/new\')">'+TB.t('create')+'</button>');
     html += TB.ui.filterBar({ fields:[{name:'status',label:TB.t('status'),type:'select',options:[{value:'',label:TB.t('all')},{value:'active',label:TB.utils.enumLabel('active')},{value:'suspended',label:TB.utils.enumLabel('suspended')}]},{name:'role',label:TB.t('lbl.role'),type:'select',options:[{value:'',label:TB.t('all')},{value:'Admin',label:'Admin'},{value:'Trader',label:'Trader'}]},{name:'keyword',label:TB.pages.member.t('关键词','Keyword'),type:'text'}], exportBtn:true });
-    html += TB.ui.table({ columns:[{label:TB.pages.member.t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role'},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:TB.pages.member.t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'},{label:TB.t('disable'),onClick:'TB.pages.member.toggleAccountStatus',type:'danger'}] });
+    html += TB.ui.table({ columns:[{label:TB.pages.member.t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role'},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
+      var off = r.raw === 'deactivated';
+      return '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? TB.pages.member.t('启用','Enable') : TB.pages.member.t('禁用','Disable'))+'</span>';
+    }}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:TB.pages.member.t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'}] });
     return html;
   },
   '/accounts/new': function(){
@@ -703,4 +706,28 @@ TB.pages.member.confirmCancelBooking = function(id){
 TB.pages.member.openHolding = function(id){ TB.router.navigate('#/holdings/' + id); };
 TB.pages.member.editAccount = function(id){ TB.router.navigate('#/accounts/' + id + '/edit'); };
 TB.pages.member.manageAccountPermissions = function(id){ TB.router.navigate('#/accounts/' + id + '/permissions'); };
-TB.pages.member.toggleAccountStatus = function(id){ TB.ui.confirmModal(TB.t('disable'), TB.t('msg.confirmSubmit'), 'TB.utils.toast(\''+TB.t('msg.operationSuccess')+'\',\'success\')', 'danger'); };
+TB.pages.member.toggleAccountStatus = function(id){
+  var t = TB.pages.member.t;
+  var a = TB.pages.member._accountById(id);
+  if(!a) return;
+  if(TB.state.user && (TB.state.user.id === a.id || (TB.state.user.email && TB.state.user.email === a.email))){
+    TB.utils.toast(t('不能禁用当前登录账号','You cannot disable the account you are signed in with'), 'error');
+    return;
+  }
+  var disabling = a.status !== 'deactivated';
+  TB.ui.confirmModal(
+    disabling ? t('禁用账号','Disable Account') : t('启用账号','Enable Account'),
+    disabling ? t('禁用后该账号将无法登录并失去全部权限，确认禁用？','Once disabled the account can no longer sign in and loses all permissions. Confirm?')
+              : t('启用后该账号恢复登录与已分配的权限，确认启用？','Once enabled the account regains sign-in and its assigned permissions. Confirm?'),
+    'TB.pages.member._toggleAccountDone(\'' + id + '\')',
+    disabling ? 'danger' : '');
+};
+TB.pages.member._toggleAccountDone = function(id){
+  var t = TB.pages.member.t;
+  var a = TB.pages.member._accountById(id);
+  if(!a) return;
+  a.status = a.status === 'deactivated' ? 'active' : 'deactivated';
+  a.statusChangedAt = TB.utils.nowET();
+  TB.utils.toast(a.status === 'deactivated' ? t('账号已禁用','Account disabled') : t('账号已启用','Account enabled'), a.status === 'deactivated' ? 'error' : 'success');
+  TB.router.render();
+};

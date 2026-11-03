@@ -75,25 +75,117 @@ TB.ops.toggleMemberStatus = function(id) {
 };
 TB.ops.exportMemberReport = function(id) { TB.ops._toastExport(); };
 
+/* ====== Key Reminders (same layout as the member portal) ====== */
+TB.pages = TB.pages || {};
+TB.pages.ops = TB.pages.ops || {};
+TB.ops._remindExpanded = false;
+TB.ops.toggleReminders = function(){ TB.ops._remindExpanded = !TB.ops._remindExpanded; TB.router.render(); };
+TB.ops._keyReminders = function(){
+  var items = [];
+  var emt = TB.pages.issuer.emtCoverSummary();
+  if(emt.gap > 0){
+    items.push({tag:TB.ops._t('Cover','Cover'), text:TB.ops._t('次日赎回 Cover 缺口 ','Next-day cover gap ') + TB.utils.moneyShort(emt.gap) + TB.ops._t('，系统已通知 Bison 收盘后补足，补足前相关 Checkout 顺延至下一个 close。', '; Bison has been notified to top up after the close, and affected checkouts roll to the next close until covered.'), route:'#/checkout-maturity', action:TB.ops._t('查看','View')});
+  }
+  var breaks = TB.data.reconciliations.filter(function(r){ return r.status === 'break'; });
+  if(breaks.length){
+    items.push({tag:TB.ops._t('对账','Recon'), text:TB.ops._t('存在 ','There are ') + breaks.length + TB.ops._t(' 笔对账差异（如 ',' reconciliation break(s) (e.g. ') + breaks[0].id + TB.ops._t('），由发行方在对账管理处理，运营跟踪闭环。', '); the issuer resolves them in Reconciliation while operations tracks closure.'), route:'#/audit-log', action:TB.ops._t('跟踪','Track')});
+  }
+  var expired = TB.data.quotes.filter(function(q){ return q.status === 'expired'; });
+  if(expired.length){
+    items.push({tag:TB.ops._t('报价','Quote'), text:expired.length + TB.ops._t(' 笔 Series 报价过期（如 ',' Series quote(s) expired (e.g. ') + expired[0].series + TB.ops._t('），成员端购买受阻。', '); member purchases are blocked.'), route:'#/quote-monitor', action:TB.ops._t('监控','Monitor')});
+  }
+  var kyb = TB.data.members.filter(function(m){ return m.kyb === 'Review' || m.status === 'pendingActivation'; });
+  if(kyb.length){
+    items.push({tag:TB.ops._t('成员','Member'), text:kyb.length + TB.ops._t(' 家成员机构 KYB/激活待处理（如 ',' member institution(s) pending KYB or activation (e.g. ') + kyb[0].name + TB.ops._t('）。', ').'), route:'#/members', action:TB.ops._t('处理','Handle')});
+  }
+  var pending = TB.data.reviewTasks.filter(function(x){ return x.status === 'pending'; });
+  if(pending.length){
+    items.push({tag:TB.ops._t('审核','Review'), text:pending.length + TB.ops._t(' 项待审核任务（如 ',' review task(s) pending (e.g. ') + pending[0].id + ' ' + pending[0].type + TB.ops._t('）。', ').'), route:'#/series-review', action:TB.ops._t('审核','Review')});
+  }
+  return items;
+};
+TB.ops._remindPanel = function(){
+  var items = TB.ops._keyReminders();
+  if(items.length === 0) return '';
+  var expanded = TB.ops._remindExpanded;
+  var html = '<div class="remind-panel"><div class="remind-head">' +
+    '<span class="remind-head-title">⚠️ ' + TB.ops._t('重点事项提醒','Key Reminders') + ' · ' + items.length + '</span>' +
+    (items.length > 2 ? '<span class="tag-link" onclick="TB.ops.toggleReminders()">' + (expanded ? TB.ops._t('收起','Collapse') : TB.ops._t('查看更多','View more')) + '</span>' : '') +
+    '</div><div class="remind-list' + (expanded ? ' expanded' : '') + '">';
+  items.forEach(function(it, i){
+    html += '<div class="remind-item' + (i === 0 ? ' remind-item-head' : '') + '">' +
+      '<div class="remind-item-main">' + TB.ui.badge(it.tag, 'warning') + '<span class="remind-item-text">' + TB.utils.esc(it.text) + '</span></div>' +
+      '<span class="tag-link" onclick="TB.router.navigate(\'' + it.route + '\')">' + it.action + '</span></div>';
+  });
+  return html + '</div></div>';
+};
+TB.pages.ops.afterRender = function(){
+  var list = document.querySelector('.remind-list');
+  if(!list) return;
+  var items = list.querySelectorAll('.remind-item');
+  if(TB.ops._remindExpanded || items.length <= 2){
+    list.style.maxHeight = 'none';
+  } else {
+    list.style.maxHeight = Math.ceil(items[0].getBoundingClientRect().height + items[1].getBoundingClientRect().height) + 'px';
+  }
+};
+
 /* ====== Series Review Helpers ====== */
+/* Series 审核：展示与发行端创建/提交时同一份数据（row.form 为发行抽屉采集内容，缺失时回退 Series 行字段） */
 TB.ops.openSeriesReview = function(id) {
-  var body = TB.ui.descList([
-    {label: TB.t('lbl.seriesId'), value: id},
-    {label: TB.t('lbl.productName'), value: TB.ops._t('美债Series', 'R-UST Bond Series')},
-    {label: TB.t('lbl.issuer'), value: 'Bison Bank'},
-    {label: TB.t('lbl.faceValue'), value: TB.utils.money(25000000)},
-    {label: TB.t('status'), value: TB.ui.statusBadge('pending')},
-  ]);
+  var s = TB.data.series.find(function(x){ return x.id === id; });
+  if(!s) return;
+  var f = s.form || {};
+  var pick = function(v, fb){ return (v == null || v === '') ? fb : v; };
+  var pct = function(v){ return (v == null || v === '') ? '-' : (parseFloat(v) * 100).toFixed(3) + '%'; };
+  var gap = s.bpSpread != null ? s.bpSpread : Math.round(((s.sellerYield || 0) - (s.refYield || 0)) * 10000);
+  var body = '<div class="font-bold mb-2">' + TB.ops._t('产品基本信息','Product Basics') + '</div>'
+    + TB.ui.descList([
+      {label: TB.t('lbl.seriesId'), value: s.id},
+      {label: TB.t('lbl.productName'), value: TB.utils.esc(pick(f.productName, s.name))},
+      {label: TB.t('lbl.issuer'), value: TB.utils.esc(s.issuer)},
+      {label: TB.t('lbl.custodian'), value: TB.utils.esc(pick(f.custodian, s.custodian))},
+      {label: TB.t('lbl.faceValue'), value: TB.utils.money(pick(f.faceTotal, s.faceTotal))},
+      {label: TB.t('lbl.maturityDate'), value: pick(f.maturityDate, s.maturityDate)},
+      {label: TB.ops._t('窗口天数','Window Days'), value: pick(f.windowDays, s.windowDays) + ' ' + TB.ops._t('天','days')},
+      {label: TB.ops._t('卖方收益率','Seller Yield'), value: pct(pick(f.sellerYield, s.sellerYield))},
+      {label: TB.ops._t('参考市场收益率','Market Reference Yield'), value: pct(pick(f.refYield, s.refYield))},
+      {label: TB.ops._t('收益差','Yield Gap'), value: gap + ' bp'},
+      {label: TB.ops._t('参考价格','Mark Price'), value: TB.utils.price(pick(f.markPrice, s.markPrice))},
+      {label: TB.ops._t('最小购买额','Min Purchase'), value: TB.utils.money(pick(f.minPurchase, 100000))},
+      {label: TB.ops._t('购买步进','Purchase Step'), value: TB.utils.money(pick(f.purchaseStep, 10000))},
+      {label: TB.ops._t('报价提供方','Quote Provider'), value: TB.utils.esc(pick(f.quoteProvider, s.quoteProvider))},
+      {label: TB.ops._t('价格来源','Price Source'), value: TB.utils.esc(pick(f.priceSource, s.priceSource))},
+      {label: TB.t('status'), value: TB.ui.statusBadge(s.status)}
+    ]);
+  body += '<div class="font-bold mt-4 mb-2">' + TB.ops._t('底层资产','Underlying Asset') + '</div>'
+    + TB.ui.descList([
+      {label: 'CUSIP', value: pick(f.cusip, s.cusip)},
+      {label: 'ISIN', value: pick(f.isin, s.isin)},
+      {label: TB.ops._t('资产类型','Asset Type'), value: pick(f.assetType, TB.ops._t('美国国债','US Treasury'))},
+      {label: TB.ops._t('资产面值','Asset Face'), value: f.assetFace ? TB.utils.money(f.assetFace) : '-'},
+      {label: TB.ops._t('资产到期日','Asset Maturity'), value: pick(f.assetMaturity, '-')},
+      {label: TB.ops._t('发行日','Issue Date'), value: pick(f.assetIssueDate, '-')},
+      {label: TB.ops._t('票息率','Coupon Rate'), value: f.couponRate ? pct(f.couponRate) : '-'},
+      {label: TB.ops._t('资产托管方','Asset Custodian'), value: pick(f.assetCustodian, s.custodian)}
+    ]);
+  body += '<div class="font-bold mt-4 mb-2">' + TB.ops._t('发行资料与风险揭示','Documents & Risk Disclosure') + '</div>'
+    + TB.ui.descList([
+      {label: TB.ops._t('上传文件','Uploaded Files'), value: (s.files && s.files.length) ? s.files.map(function(x){ return TB.utils.esc(typeof x === 'string' ? x : x.name); }).join('、') : TB.ops._t('无','None')},
+      {label: TB.ops._t('风险揭示书版本','Risk Disclosure Version'), value: pick(f.riskVersion, 'v3')},
+      {label: TB.ops._t('发行信息责任确认','Responsibility Confirmed'), value: f.agree === false ? TB.ui.badge(TB.ops._t('未确认','Not confirmed'), 'error') : TB.ui.badge(TB.ops._t('已确认','Confirmed'), 'success')},
+      {label: TB.ops._t('备注','Remarks'), value: TB.utils.esc(pick(f.remarks, TB.ops._t('无','None')))}
+    ]);
   body += TB.ui.formField({
     label: TB.ops._t('审核意见', 'Review Comment'),
     name: 'review_comment',
     type: 'textarea',
-    placeholder: TB.ops._t('请输入审核意见', 'Enter review comment'),
+    placeholder: TB.ops._t('驳回时必填', 'Required when rejecting'),
   });
   var footer = '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button>' +
     '<button class="btn btn-danger" onclick="TB.ui.closeModal();TB.utils.toast(\''+TB.t('msg.confirmReject')+'\',\'error\')">'+TB.t('reject')+'</button>' +
     '<button class="btn btn-primary" onclick="TB.ops._toastSuccess()">'+TB.t('approve')+'</button>';
-  TB.ui.modal({ title: TB.ops._t('Series审核', 'Series Review'), body: body, footer: footer, size: 'lg' });
+  TB.ui.modal({ title: TB.ops._t('Series审核', 'Series Review') + ' · ' + s.id, body: body, footer: footer, size: 'lg' });
 };
 TB.ops.exportSeriesReview = function() { TB.ops._toastExport(); };
 
@@ -192,22 +284,6 @@ TB.ops.viewReviewDetail = function(id) {
   if (task.type === 'Series Issuance') { TB.router.navigate('#/series/' + task.ref); }
   else { TB.ops.openReviewTask(id); }
 };
-TB.ops.openBatchApprove = function() {
-  var pending = TB.data.reviewTasks.filter(function(t) { return t.status === 'pending'; });
-  var body = '<p>'+TB.ops._t('将批量通过以下', 'Batch approve the following ')+' '+pending.length+' '+TB.t('items')+'：</p>';
-  body += TB.ui.table({
-    columns: [
-      {key: 'id', label: TB.ops._t('任务编号', 'Task ID')},
-      {key: 'type', label: TB.t('type')},
-      {key: 'ref', label: TB.ops._t('业务对象', 'Object')},
-    ],
-    data: pending,
-  });
-  var footer = '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button>' +
-    '<button class="btn btn-primary" onclick="TB.ops._toastSuccess()">'+TB.t('approve')+'</button>';
-  TB.ui.modal({ title: TB.ops._t('批量通过', 'Batch Approve'), body: body, footer: footer, size: 'lg' });
-};
-
 /* ====== Checkout/Maturity Helpers ====== */
 TB.ops.viewCheckoutDetail = function(id) {
   var body = TB.ui.descList([
@@ -584,8 +660,8 @@ TB.router.register('ops', {
   '/dashboard': function(params) {
     var memberCount = TB.data.members.length;
     var activeSeries = TB.data.series.filter(function(s) { return s.status === 'open'; }).length;
-    var txVolume = 0;
-    TB.data.transactions.forEach(function(t) { txVolume += t.amount; });
+    var tradedFace = TB.data.holdings.reduce(function(sum, h){ return sum + (h.faceValue || 0); }, 0);
+    var tradeCount = TB.data.holdings.length;
     var totalFace = 0, totalAvail = 0;
     TB.data.series.forEach(function(s) { totalFace += s.faceTotal; totalAvail += s.faceAvailable; });
     var capRate = totalFace > 0 ? Math.round((totalFace - totalAvail) / totalFace * 100) : 0;
@@ -594,39 +670,20 @@ TB.router.register('ops', {
     var html = TB.utils.contentHeader(TB.t('nav.opsDashboard'), '<button class="btn btn-sm" onclick="TB.ops.refreshDashboard()">'+TB.t('refresh')+'</button>' +
       '<button class="btn btn-sm" onclick="TB.ops.exportDashboard()">'+TB.t('export')+'</button>');
 
-    /* 6 Stat Cards */
+    html += TB.ops._remindPanel();
+
+    /* 5 Stat Cards */
     html += '<div class="stat-grid">';
     html += TB.ui.statCard(TB.t('nav.members'), memberCount, '+1 '+TB.t('lbl.created'), 'up', TB.ops._t('本月新增', 'New this month'));
     html += TB.ui.statCard(TB.ops._t('活跃Series', 'Active Series'), activeSeries, '', '', TB.ops._t('开放购买中', 'Open for purchase'));
-    html += TB.ui.statCard(TB.ops._t('交易量', 'Tx Volume'), TB.utils.moneyShort(txVolume), '+12.5%', 'up', TB.ops._t('近30天', 'Last 30 days'));
+    html += TB.ui.statCard(TB.ops._t('成交面额', 'Traded Face'), TB.utils.moneyShort(tradedFace), '', '', tradeCount + ' ' + TB.ops._t('笔成交', 'trades'));
     html += TB.ui.statCard(TB.ops._t('容量率', 'Capacity Rate'), capRate + '%', '', '', totalAvail > 0 ? TB.utils.moneyShort(totalAvail) + TB.ops._t(' 可用', ' available') : '');
     html += TB.ui.statCard(TB.ops._t('审核数', 'Pending Reviews'), reviewCount, '', '', TB.ops._t('待审核任务', 'Pending tasks'));
     html += '</div>';
 
-    /* Series Status Distribution */
-    var statusGroups = {};
-    TB.data.series.forEach(function(s) {
-      if (!statusGroups[s.status]) statusGroups[s.status] = 0;
-      statusGroups[s.status]++;
-    });
-    var distData = [];
-    for (var st in statusGroups) {
-      distData.push({id: st, status: st, count: statusGroups[st]});
-    }
+    /* Pending Tasks */
     html += TB.ui.card(
-      TB.ops._t('Series状态分布', 'Series Status Distribution'),
-      TB.ui.table({
-        columns: [
-          {key: 'status', label: TB.t('status'), render: function(r) { return TB.ui.statusBadge(r.status); }},
-          {key: 'count', label: TB.ops._t('数量', 'Count'), align: 'right'},
-        ],
-        data: distData,
-      })
-    );
-
-    /* Pending Reviews */
-    html += TB.ui.card(
-      TB.ops._t('待审核事项', 'Pending Reviews'),
+      TB.ops._t('待办事项', 'Pending Tasks'),
       TB.ui.table({
         columns: [
           {key: 'id', label: TB.ops._t('任务编号', 'Task ID')},
@@ -1072,62 +1129,6 @@ TB.router.register('ops', {
       ],
       pagination: {total: TB.data.quotes.length, pageSize: 10, current: 1},
     });
-
-    return html;
-  },
-
-  /* ---- 9. /review-queue — Review Queue ---- */
-  '/review-queue': function(params) {
-    var html = TB.utils.contentHeader(TB.t('nav.reviewQueue'), '<button class="btn btn-sm" onclick="TB.ops.openBatchApprove()">'+TB.ops._t('批量通过', 'Batch Approve')+'</button>');
-
-    /* Left sidebar navigation + right content */
-    var pendingAll = TB.data.reviewTasks.filter(function(t) { return t.status === 'pending'; });
-    var pendingIssuance = pendingAll.filter(function(t) { return t.type === 'Series Issuance'; });
-    var pendingBurn = pendingAll.filter(function(t) { return t.type === 'Burn Request'; });
-    var pendingMember = pendingAll.filter(function(t) { return t.type === 'Member Activation'; });
-    var pendingOther = pendingAll.filter(function(t) {
-      return t.type !== 'Series Issuance' && t.type !== 'Burn Request' && t.type !== 'Member Activation';
-    });
-
-    var navItems = [
-      {key: 'all', label: TB.t('all'), count: pendingAll.length},
-      {key: 'issuance', label: TB.ops._t('发行审核', 'Issuance Review'), count: pendingIssuance.length},
-      {key: 'burn', label: TB.ops._t('销毁审核', 'Burn Review'), count: pendingBurn.length},
-      {key: 'member', label: TB.ops._t('成员审核', 'Member Review'), count: pendingMember.length},
-      {key: 'other', label: TB.ops._t('其他', 'Other'), count: pendingOther.length},
-    ];
-
-    var sidebarHtml = '<div style="width:200px;flex-shrink:0">';
-    navItems.forEach(function(n, i) {
-      sidebarHtml += '<div class="menu-item' + (i === 0 ? ' active' : '') + '" onclick="TB.ops._toastFilter()" style="display:flex;justify-content:space-between;align-items:center">' +
-        '<span>' + n.label + '</span>' +
-        '<span class="badge badge-default">' + n.count + '</span></div>';
-    });
-    sidebarHtml += '</div>';
-
-    html += '<div class="flex gap-4" style="align-items:flex-start">';
-    html += sidebarHtml;
-    html += '<div style="flex:1">';
-    html += TB.ui.table({
-      columns: [
-        {key: 'id', label: TB.ops._t('任务编号', 'Task ID')},
-        {key: 'type', label: TB.t('type')},
-        {key: 'ref', label: TB.ops._t('业务对象', 'Object')},
-        {key: 'applicant', label: TB.t('lbl.applicant')},
-        {key: 'node', label: TB.t('lbl.node')},
-        {key: 'time', label: TB.t('time')},
-        {key: 'priority', label: TB.t('lbl.priority'), render: function(r) {
-          return TB.ui.badge(TB.utils.enumLabel(r.priority), r.priority === 'High' ? 'error' : 'warning');
-        }},
-      ],
-      data: pendingAll,
-      actions: [
-        {label: TB.t('review'), onClick: 'TB.ops.openReviewTask'},
-        {label: TB.t('viewDetail'), onClick: 'TB.ops.viewReviewDetail', type: 'text'},
-      ],
-    });
-    html += '</div>';
-    html += '</div>';
 
     return html;
   },
