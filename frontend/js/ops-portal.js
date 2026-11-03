@@ -787,7 +787,7 @@ TB.router.register('ops', {
         {key: 'go', label: TB.t('actions'), render: function(r) {
           var off = r.status === 'deactivated';
           return '<span class="tag-link" onclick="TB.ops.navMember(\'' + r.id + '\')">' + TB.t('viewDetail') + '</span> '
-            + '<span class="tag-link" style="color:' + (off ? 'var(--success)' : 'var(--error)') + '" onclick="TB.ops.toggleMemberStatus(\'' + r.id + '\')">' + (off ? TB.t('enable') : TB.t('disable')) + '</span>';
+            + '<span class="tag-link" onclick="TB.ops.toggleMemberStatus(\'' + r.id + '\')">' + (off ? TB.t('enable') : TB.t('disable')) + '</span>';
         }},
       ],
       data: TB.data.members,
@@ -854,7 +854,7 @@ TB.router.register('ops', {
                 {key: 'lastLogin', label: TB.t('lbl.lastLogin')},
                 {key: 'go', label: TB.t('actions'), render: function(r) {
                   var off = r.status !== 'active';
-                  return '<span class="tag-link" style="color:' + (off ? 'var(--success)' : 'var(--error)') + '" onclick="TB.ops.toggleAccountStatus(\'' + r.id + '\')">' + (off ? TB.t('enable') : TB.t('disable')) + '</span> '
+                  return '<span class="tag-link" onclick="TB.ops.toggleAccountStatus(\'' + r.id + '\')">' + (off ? TB.t('enable') : TB.t('disable')) + '</span> '
                     + '<span class="tag-link" onclick="TB.ops.resetAccountPwd(\'' + r.id + '\')">' + TB.t('resetPwd') + '</span>';
                 }},
               ],

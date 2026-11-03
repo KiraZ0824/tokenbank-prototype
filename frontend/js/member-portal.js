@@ -103,7 +103,7 @@ TB.pages.member._holdingsTabs = function(activeKey){
     bookings: TB.ui.table({ columns:[{label:TB.pages.member.t('预定编号','Booking ID'),key:'id'},{label:TB.t('lbl.seriesId'),key:'series'},{label:TB.t('lbl.faceValue'),key:'face'},{label:TB.pages.member.t('起息日','Value Date'),key:'checkin'},{label:TB.pages.member.t('赎回日期','Redemption Date'),key:'checkout'},{label:TB.pages.member.t('窗口天数','Window Days'),key:'window'},{label:TB.pages.member.t('预估定金','Estimated Deposit'),key:'deposit'},{label:TB.pages.member.t('定金状态','Deposit Status'),key:'depositStatus',render:function(r){ return TB.pages.member._depositStatusLabel(r.depositStatus); }},{label:TB.t('status'),key:'status'},{label:TB.t('time'),key:'time'},{label:TB.t('actions'),key:'go',render:function(r){
       var view = '<span class="tag-link" onclick="TB.utils.toast(\''+r.id+'\')">'+TB.t('viewDetail')+'</span>';
       if(!r.cancellable) return view;
-      return view+' <span class="tag-link" style="color:var(--error)" onclick="TB.pages.member.cancelBooking(\''+r.id+'\')">'+TB.pages.member.t('取消预订','Cancel Booking')+'</span>';
+      return view+' <span class="tag-link" onclick="TB.pages.member.cancelBooking(\''+r.id+'\')">'+TB.pages.member.t('取消预订','Cancel Booking')+'</span>';
     }}], data:TB.pages.member._bookingRows() }),
     transactions: TB.ui.table({ columns:[{label:TB.pages.member.t('流水号','Txn ID'),key:'id'},{label:TB.t('time'),key:'time'},{label:TB.t('type'),key:'type'},{label:TB.t('amount'),key:'amount'},{label:TB.pages.member.t('手续费','Fee'),key:'fee'},{label:TB.t('status'),key:'status'},{label:TB.t('lbl.seriesId'),key:'series'},{label:TB.t('remarks'),key:'remarks'}], data:TB.pages.member._transactionRows() })
   }});
@@ -605,7 +605,7 @@ TB.router.register('member', {
       var off = r.raw === 'deactivated';
       return '<span class="tag-link" onclick="TB.pages.member.editAccount(\''+r.id+'\')">'+TB.t('edit')+'</span> '
         + '<span class="tag-link" onclick="TB.pages.member.manageAccountPermissions(\''+r.id+'\')">'+TB.pages.member.t('权限管理','Permissions')+'</span> '
-        + '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? TB.pages.member.t('启用','Enable') : TB.pages.member.t('禁用','Disable'))+'</span> '
+        + '<span class="tag-link" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? TB.pages.member.t('启用','Enable') : TB.pages.member.t('禁用','Disable'))+'</span> '
         + '<span class="tag-link" onclick="TB.pages.member.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
     }}], data:TB.pages.member._accountRows() });
     return html;
@@ -656,7 +656,7 @@ TB.router.register('member', {
         var off = r.raw === 'deactivated';
         return '<span class="tag-link" onclick="TB.pages.member.editAccount(\''+r.id+'\')">'+TB.t('edit')+'</span> '
           + '<span class="tag-link" onclick="TB.pages.member.manageAccountPermissions(\''+r.id+'\')">'+t('权限管理','Permissions')+'</span> '
-          + '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('禁用','Disable'))+'</span> '
+          + '<span class="tag-link" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('禁用','Disable'))+'</span> '
           + '<span class="tag-link" onclick="TB.pages.member.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
       }}], data:TB.pages.member._accountRows() }),
       compliance: TB.ui.card(t('KYB状态','KYB Status'), TB.ui.descList([{label:TB.t('status'), value:TB.ui.statusBadge('active')},{label:t('更新时间','Updated At'), value:'2026-11-02 10:00:00'}])) + TB.ui.card(t('合规声明','Compliance Declarations'), TB.ui.descList(TB.pages.member._complianceDecls()))
