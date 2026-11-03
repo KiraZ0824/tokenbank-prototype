@@ -1303,10 +1303,11 @@ TB.router.register('issuer', {
       {key:'lastLogin', label:TB.t('lastLogin')},
       {key:'go', label:TB.t('actions'), render:function(r){
         var off = r.status !== 'active';
-        return '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.issuer.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('停用','Disable'))+'</span> '
+        return '<span class="tag-link" onclick="TB.pages.issuer.managePermissions(\''+r.id+'\')">'+t('权限管理','Permissions')+'</span> '
+          + '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.issuer.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('停用','Disable'))+'</span> '
           + '<span class="tag-link" onclick="TB.pages.issuer.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
       }}
-    ], data:TB.data.accounts.filter(function(a){ return a.org === 'Bison Bank'; }), actions:[{label:t('权限管理','Permissions'), onClick:'TB.pages.issuer.managePermissions', type:'text'}] });
+    ], data:TB.data.accounts.filter(function(a){ return a.org === 'Bison Bank'; }) });
   },
   '/accounts/:accountId/permissions': function(p){
     var a = TB.data.accounts.find(function(x){ return x.id === p.accountId; }) || TB.data.accounts[0];

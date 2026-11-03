@@ -1264,8 +1264,8 @@ TB.router.register('ops', {
 
     var sidebarHtml = '<div style="width:260px;flex-shrink:0">';
     roles.forEach(function(r){
-      sidebarHtml += '<div class="menu-item' + (r.id === role.id ? ' active' : '') + '" onclick="TB.ops.selectRole(\'' + r.id + '\')">' +
-        '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+      sidebarHtml += '<div class="menu-item role-item' + (r.id === role.id ? ' active' : '') + '" onclick="TB.ops.selectRole(\'' + r.id + '\')">' +
+        '<div class="role-item-head">' +
         '<span>' + TB.text(r.name) + '</span>' +
         '<span class="badge ' + (r.portal === 'ops' ? 'badge-info' : (r.portal === 'issuer' ? 'badge-purple' : 'badge-success')) + '">' + portalName[r.portal] + '</span></div>' +
         '<div class="text-sm text-muted">' + TB.text(r.desc) + '</div></div>';

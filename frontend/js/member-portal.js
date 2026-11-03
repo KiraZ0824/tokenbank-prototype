@@ -603,8 +603,11 @@ TB.router.register('member', {
     html += TB.ui.filterBar({ fields:[{name:'status',label:TB.t('status'),type:'select',options:[{value:'',label:TB.t('all')},{value:'active',label:TB.utils.enumLabel('active')},{value:'suspended',label:TB.utils.enumLabel('suspended')}]},{name:'role',label:TB.t('lbl.role'),type:'select',options:[{value:'',label:TB.t('all')},{value:'Admin',label:'Admin'},{value:'Trader',label:'Trader'}]},{name:'keyword',label:TB.pages.member.t('关键词','Keyword'),type:'text'}], exportBtn:true });
     html += TB.ui.table({ columns:[{label:TB.pages.member.t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role'},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
       var off = r.raw === 'deactivated';
-      return '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? TB.pages.member.t('启用','Enable') : TB.pages.member.t('禁用','Disable'))+'</span>';
-    }}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:TB.pages.member.t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'},{label:TB.t('resetPwd'),onClick:'TB.pages.member.resetAccountPwd',type:'text'}] });
+      return '<span class="tag-link" onclick="TB.pages.member.editAccount(\''+r.id+'\')">'+TB.t('edit')+'</span> '
+        + '<span class="tag-link" onclick="TB.pages.member.manageAccountPermissions(\''+r.id+'\')">'+TB.pages.member.t('权限管理','Permissions')+'</span> '
+        + '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? TB.pages.member.t('启用','Enable') : TB.pages.member.t('禁用','Disable'))+'</span> '
+        + '<span class="tag-link" onclick="TB.pages.member.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
+    }}], data:TB.pages.member._accountRows() });
     return html;
   },
   '/accounts/new': function(){
@@ -651,9 +654,11 @@ TB.router.register('member', {
     ], content:{
       accounts: TB.ui.table({ columns:[{label:t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role',render:function(r){ return roleName(r.role); }},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
         var off = r.raw === 'deactivated';
-        return '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('禁用','Disable'))+'</span> '
+        return '<span class="tag-link" onclick="TB.pages.member.editAccount(\''+r.id+'\')">'+TB.t('edit')+'</span> '
+          + '<span class="tag-link" onclick="TB.pages.member.manageAccountPermissions(\''+r.id+'\')">'+t('权限管理','Permissions')+'</span> '
+          + '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('禁用','Disable'))+'</span> '
           + '<span class="tag-link" onclick="TB.pages.member.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
-      }}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'}] }),
+      }}], data:TB.pages.member._accountRows() }),
       compliance: TB.ui.card(t('KYB状态','KYB Status'), TB.ui.descList([{label:TB.t('status'), value:TB.ui.statusBadge('active')},{label:t('更新时间','Updated At'), value:'2026-11-02 10:00:00'}])) + TB.ui.card(t('合规声明','Compliance Declarations'), TB.ui.descList(TB.pages.member._complianceDecls()))
     }});
     return html;
