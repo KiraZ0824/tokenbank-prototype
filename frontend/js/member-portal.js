@@ -274,7 +274,7 @@ TB.pages.member.openOrderConfirm = function(kind){
       {label:t('预期估值','Expected Valuation'), value:TB.utils.indicative(face * s.markPrice, TB.utils.money)},
       {label:t('预期收益','Expected Return'), value:TB.utils.indicative(bRet, TB.utils.money)},
       {label:t('预期收益率','Expected Yield'), value:TB.utils.indicative(bYld, TB.utils.yieldFmt)},
-      {label:t('预估定金','Estimated Deposit')+TB.utils.note(t('提交时从可用 EMT 扣收，公式 = USD 20 交易手续费 + 面值 × 收益差 × 窗口天数 / 365。','Charged from available EMT on submission; USD 20 transaction fee + face × yield gap × window days / 365.')), value:TB.utils.money(dep)},
+      {label:t('预估定金','Estimated Deposit')+TB.utils.note(t('提交时从可用 EMT 扣收，公式 = USB 20 交易手续费 + 面值 × 收益差 × 窗口天数 / 365。','Charged from available EMT on submission; USB 20 transaction fee + face × yield gap × window days / 365.')), value:TB.utils.money(dep)},
       {label:t('其中交易手续费','incl. Transaction Fee'), value:TB.utils.money(20)},
       {label:t('定金扣款后可用 EMT','EMT After Deposit'), value:TB.utils.money(emt - dep)},
       {label:t('起息日应付','Payable on Value Date')+TB.utils.note(t('起息日 cut-off 系统校验可用余额是否覆盖预定面值（含已付定金），随后自动扣款成交，扣款金额 = 预定面值 − 已付定金。','At the value-date cut-off the system checks that the available balance covers the booking face value (including the deposit already paid), then settles automatically; the debit equals face value minus deposit.')), value:TB.utils.money(payable)},
@@ -399,7 +399,7 @@ TB.pages.member.calcTrade = function(){
       + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 参考价格，交割后作为持仓估值基准。','Expected valuation = face × mark price; used as the position value after settlement.'], TB.utils.money(valuation))
       + calcRow('预期收益','Expected Return',['预期收益 = 面值 × 参考收益率 × 持有天数 / 365，仅供参考不构成保证收益。','Expected return = face × reference yield × holding days / 365; indicative only.'], TB.utils.money(ret))
       + calcRow('预期收益率','Expected Yield',['预期收益率 = 预期收益 ÷ 面值 × 365 ÷ 持有天数（未扣手续费），仅供参考不构成保证收益。','Expected yield = expected return ÷ face × 365 ÷ holding days, before fees; indicative only.'], TB.utils.yieldFmt(buyYield))
-      + calcRow('现金应付','Cash Payable',['现金应付 = 面值 × 参考价格 + USD 20 交易费。','Cash payable = face × mark price + USD 20 fee.'], TB.utils.money(cash))
+      + calcRow('现金应付','Cash Payable',['现金应付 = 面值 × 参考价格 + USB 20 交易费。','Cash payable = face × mark price + USB 20 fee.'], TB.utils.money(cash))
       + calcRow('扣费后年化收益率','Net Annualized Yield',['扣费后年化收益率 =（预期收益 − 交易手续费）÷ 面值 × 365 ÷ 持有天数。','Net annualised yield = (expected return − transaction fee) ÷ face × 365 ÷ holding days.'], TB.utils.yieldFmt(net));
   } else {
     var cin = TB.utils.getInputVal('trade_checkin');
@@ -415,7 +415,7 @@ TB.pages.member.calcTrade = function(){
     rows = calcRow('窗口天数','Window Days',['窗口天数 = 赎回日期 − 起息日，须为交易日区间。','Window days = redemption date minus value date, over trading days.'], days+' '+t('天','days'))
       + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 参考价格，交割后作为持仓估值基准。','Expected valuation = face × mark price; used as the position value after settlement.'], TB.utils.money(bVal))
       + calcRow('预期收益','Expected Return',['预期收益 = 面值 × 参考收益率 × 窗口天数 / 365，仅供参考不构成保证收益。','Expected return = face × reference yield × window days / 365; indicative only.'], TB.utils.money(bRet))
-      + calcRow('预估定金','Estimated Deposit',['定金 = USD 20 + 面值 × 收益差 × 窗口天数 / 365，提交时从可用 EMT 扣收。','Deposit = USD 20 + face × yield gap × window days / 365, charged from available EMT on submission.'], TB.utils.money(dep))
+      + calcRow('预估定金','Estimated Deposit',['定金 = USB 20 + 面值 × 收益差 × 窗口天数 / 365，提交时从可用 EMT 扣收。','Deposit = USB 20 + face × yield gap × window days / 365, charged from available EMT on submission.'], TB.utils.money(dep))
       + calcRow('起息日应付','Payable on Value Date',['起息日 cut-off 系统校验可用余额后自动扣款成交，金额 = 预定面值 − 已付定金。','At the value-date cut-off the system verifies the available balance and settles automatically; the debit equals booking face value minus the deposit paid.'], TB.utils.money(bPayable))
       + calcRow('预期收益率','Expected Yield',['预期收益率 =（预期收益 − 预估定金）÷ 面值 × 365 ÷ 窗口天数，仅供参考不构成保证收益。','Expected yield = (expected return − estimated deposit) ÷ face × 365 ÷ window days; indicative only.'], TB.utils.yieldFmt(bYield));
     if(face > 0 && bShort > 0){
@@ -463,7 +463,7 @@ TB.pages.member._tradePanel = function(s, purchasable){
     + '<div class="trade-tab'+(tab === 'buy' ? ' active' : '')+'" onclick="TB.pages.member.setTradeTab(\'buy\')">'+t('买入','Buy')+'</div>'
     + '<div class="trade-tab'+(tab === 'book' ? ' active' : '')+'" onclick="TB.pages.member.setTradeTab(\'book\')">'+t('预定','Book Ahead')+'</div>'
     + '</div><div class="trade-body">';
-  html += field(t('可用 EMT','Available EMT'), t('来自 Token Bank 钱包可用余额，金额单位为 USD；买入扣款与预定定金均从中扣减。','From your Token Bank wallet available balance, denominated in USD; purchase debits and booking deposits are taken from it.'), TB.utils.money(emt), true);
+  html += field(t('可用 EMT','Available EMT'), t('来自 Token Bank 钱包可用余额，金额单位为 USB；买入扣款与预定定金均从中扣减。','From your Token Bank wallet available balance, denominated in USB; purchase debits and booking deposits are taken from it.'), TB.utils.money(emt), true);
   html += '<div class="trade-field"><div class="trade-field-label"><span>'+(tab === 'buy' ? t('买入面值','Buy Face Value') : t('预定面值','Booking Face Value'))+TB.utils.note(t('不低于最小购买额 100,000，且为步进 10,000 的整数倍。','At least the 100,000 minimum purchase and a multiple of the 10,000 step.'))+'</span></div>'
     + '<input type="number" class="form-input" id="trade_face" value="1000000"></div>';
   if(tab === 'buy'){
@@ -549,8 +549,8 @@ TB.router.register('member', {
           {label:t('窗口天数','Window Days')+TB.utils.note(t('该产品允许的最长持有天数；买入时选择的赎回日不得超出。','Maximum holding days for this product; the redemption date chosen at purchase cannot exceed it.')), value:s.windowDays + ' ' + t('天','days')},
           {label:t('参考市场收益率','Reference Yield')+TB.utils.note(t('参考收益率用于预期收益与定金计算，不代表保证收益。','Reference yield drives the expected-return and deposit calculations; not a guaranteed return.')), value:TB.utils.yield(s.refYield)},
           {label:t('估值日','Valuation Date')+TB.utils.note(t('估值日为美东业务日，收盘价与估值均以当日美债收盘（17:00 ET）为基准。','Valuation date is an ET business date; the close price and valuation are struck at the US Treasury close (17:00 ET).')), value:s.valuationDate},
-          {label:t('交易手续费','Transaction Fee')+TB.utils.note(t('每笔买入或预定收取 USD 20，已计入现金应付与预估定金。','USD 20 per buy or booking; included in cash payable and the estimated deposit.')), value:TB.utils.money(20) + ' / ' + t('笔','trade')},
-          {label:t('预定定金规则','Booking Deposit Rule')+TB.utils.note(t('收益差 = 卖方收益率 − 参考收益率 = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp；起息日截止（Value Date cut-off）余额不足先给最长 1 小时宽限（参数可调），仍不足则取消订单并没收全部定金。','Yield gap = seller yield − reference yield = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp; if the balance is short at the value-date cut-off a 1-hour grace (configurable) applies, after which the order is cancelled and the full deposit is forfeited.')), value:t('USD 20 + 面值 × 收益差 × 窗口天数 / 365','USD 20 + face × yield gap × window days / 365')},
+          {label:t('交易手续费','Transaction Fee')+TB.utils.note(t('每笔买入或预定收取 USB 20，已计入现金应付与预估定金。','USB 20 per buy or booking; included in cash payable and the estimated deposit.')), value:TB.utils.money(20) + ' / ' + t('笔','trade')},
+          {label:t('预定定金规则','Booking Deposit Rule')+TB.utils.note(t('收益差 = 卖方收益率 − 参考收益率 = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp；起息日截止（Value Date cut-off）余额不足先给最长 1 小时宽限（参数可调），仍不足则取消订单并没收全部定金。','Yield gap = seller yield − reference yield = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp; if the balance is short at the value-date cut-off a 1-hour grace (configurable) applies, after which the order is cancelled and the full deposit is forfeited.')), value:t('USB 20 + 面值 × 收益差 × 窗口天数 / 365','USB 20 + face × yield gap × window days / 365')},
           {label:t('报价提供方','Quote Provider'), value:s.quoteProvider},
           {label:t('价格来源','Price Source'), value:s.priceSource},
           {label:t('报价时间','Quote Timestamp')+TB.utils.note(t('Bison 报价时间按美东时间记录并换算为本地时间展示；收盘价口径以当日美债收盘（17:00 ET）为准。','Bison quote timestamps are recorded in ET and converted to local time; close-of-day pricing follows the US Treasury close (17:00 ET).')), value:s.quoteTime},

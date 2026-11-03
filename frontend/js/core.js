@@ -138,8 +138,8 @@ TB.icon = function(name){
 
 /* ====== Utilities ====== */
 TB.utils = {
-  money: function(v, cur){ if(v==null) return '-'; var n=parseFloat(v).toFixed(2); var parts=n.split('.'); parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return (cur||'USD')+' '+parts.join('.'); },
-  moneyShort: function(v){ if(v==null) return '-'; var n=parseFloat(v); if(n>=1e9) return '$'+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return '$'+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return '$'+(n/1e3).toFixed(1)+'K'; return '$'+n.toFixed(2); },
+  money: function(v, cur){ if(v==null) return '-'; var n=parseFloat(v).toFixed(2); var parts=n.split('.'); parts[0]=parts[0].replace(/\B(?=(\d{3})+(?!\d))/g,','); return (cur||'USB')+' '+parts.join('.'); },
+  moneyShort: function(v){ if(v==null) return '-'; var n=parseFloat(v); if(n>=1e9) return 'USB '+(n/1e9).toFixed(2)+'B'; if(n>=1e6) return 'USB '+(n/1e6).toFixed(2)+'M'; if(n>=1e3) return 'USB '+(n/1e3).toFixed(1)+'K'; return 'USB '+n.toFixed(2); },
   yield: function(v){ if(v==null) return '-'; return (parseFloat(v)*100).toFixed(3)+'%'; },
   yieldFmt: function(v){ if(v==null) return '-'; return parseFloat(v).toFixed(3)+'%'; },
   price: function(v){ if(v==null) return '-'; return parseFloat(v).toFixed(4); },
@@ -291,11 +291,11 @@ TB.data = {
   ],
   notifications: [
     {id:'N-001',type:'booking',title:'Booking Confirmed',desc:'Your booking BK-20261102-001 has been confirmed.',time:'2026-11-02 08:15:00',read:false,priority:'high'},
-    {id:'N-002',type:'fund',title:'Deposit Received',desc:'USD 2,000,000.00 has been credited to your wallet.',time:'2026-11-02 09:50:00',read:false,priority:'medium'},
+    {id:'N-002',type:'fund',title:'Deposit Received',desc:'USB 2,000,000.00 has been credited to your wallet.',time:'2026-11-02 09:50:00',read:false,priority:'medium'},
     {id:'N-003',type:'order',title:'Checkout Reminder',desc:'Your holding in UST-2026-005 will checkout on 2026-12-05.',time:'2026-11-01 16:00:00',read:true,priority:'high'},
     {id:'N-004',type:'system',title:'Series Status Change',desc:'UST-2026-003 has been closed for booking.',time:'2026-11-01 10:00:00',read:true,priority:'low'},
     {id:'N-005',type:'approval',title:'Approval Timeout',desc:'Series review for UST-2026-007 has been pending for 24 hours.',time:'2026-11-02 06:00:00',read:false,priority:'high'},
-    {id:'N-006',type:'fund',title:'Withdraw Completed',desc:'USD 1,000,000.00 withdrawal completed.',time:'2026-11-01 11:30:00',read:true,priority:'high'},
+    {id:'N-006',type:'fund',title:'Withdraw Completed',desc:'USB 1,000,000.00 withdrawal completed.',time:'2026-11-01 11:30:00',read:true,priority:'high'},
   ],
   accounts: [
     {id:'ACC-001',name:'John Smith',email:'john@alpha-fund.com',role:'Admin',org:'Alpha Fund Management',status:'active',created:'2026-08-15',lastLogin:'2026-11-02 08:00:00'},
@@ -350,15 +350,15 @@ TB.data = {
   ],
   emtLedger: [
     {id:'LED-001',time:'2026-11-02 09:15:00',item:{zh:'成员 Checkout 兑付',en:'Member checkout payout'},series:'R-UST-2026-005',counterparty:'Beta Capital Partners',direction:'out',amount:1020000,remarks:{zh:'含收益结算',en:'Including accrued return'}},
-    {id:'LED-002',time:'2026-11-02 06:30:00',item:{zh:'USD 入金铸入 EMT',en:'USD deposit minted to EMT'},series:'-',counterparty:'Bison Bank',direction:'in',amount:5000000,remarks:{zh:'Remi Core 入金确认',en:'Remi Core deposit confirmed'}},
+    {id:'LED-002',time:'2026-11-02 06:30:00',item:{zh:'USB 入金铸入 EMT',en:'USB deposit minted to EMT'},series:'-',counterparty:'Bison Bank',direction:'in',amount:5000000,remarks:{zh:'Remi Core 入金确认',en:'Remi Core deposit confirmed'}},
     {id:'LED-003',time:'2026-11-01 16:40:00',item:{zh:'EMT 提现换汇',en:'EMT withdrawn to fiat'},series:'-',counterparty:'Bison Bank',direction:'out',amount:3000000,remarks:{zh:'兑换法币再购美债',en:'Redeemed to buy next Treasury'}},
     {id:'LED-004',time:'2026-11-01 14:05:00',item:{zh:'成员购买收款',en:'Member purchase inflow'},series:'R-UST-2026-001',counterparty:'Alpha Fund Management',direction:'in',amount:500000,remarks:{zh:'DVP 扣款',en:'DVP debit'}},
     {id:'LED-005',time:'2026-11-01 11:20:00',item:{zh:'成员提现兑付',en:'Member withdrawal payout'},series:'-',counterparty:'Gamma Wealth Advisory',direction:'out',amount:1000000,remarks:{zh:'提现出金',en:'Withdrawal credit'}},
-    {id:'LED-006',time:'2026-10-31 15:45:00',item:{zh:'到期兑付支出',en:'Maturity payout'},series:'R-UST-2026-006',counterparty:'Alpha Fund Management',direction:'out',amount:8000000,remarks:{zh:'按 USD 1 兑付',en:'Paid at USD 1 per token'}},
+    {id:'LED-006',time:'2026-10-31 15:45:00',item:{zh:'到期兑付支出',en:'Maturity payout'},series:'R-UST-2026-006',counterparty:'Alpha Fund Management',direction:'out',amount:8000000,remarks:{zh:'按 USB 1 兑付',en:'Paid at USB 1 per token'}},
     {id:'LED-007',time:'2026-10-30 10:10:00',item:{zh:'成员预定定金',en:'Booking deposit inflow'},series:'R-UST-2026-002',counterparty:'Alpha Fund Management',direction:'in',amount:2500000,remarks:{zh:'预定 check-in',en:'Booking check-in'}},
   ],
   emtFlows: [
-    {id:'EMT-001',time:'2026-11-02 06:30:00',type:'mint',direction:'in',channel:'Remi Core',amount:5000000,status:'completed',remarks:'USD 入金后 Bison 实时 mint EMT'},
+    {id:'EMT-001',time:'2026-11-02 06:30:00',type:'mint',direction:'in',channel:'Remi Core',amount:5000000,status:'completed',remarks:'USB 入金后 Bison 实时 mint EMT'},
     {id:'EMT-002',time:'2026-11-02 09:15:00',type:'payout',direction:'out',channel:'Token Bank',amount:1020000,status:'completed',remarks:'Checkout 兑付 Beta Capital Partners'},
     {id:'EMT-003',time:'2026-11-01 16:40:00',type:'withdraw',direction:'out',channel:'Remi Core',amount:3000000,status:'settled',remarks:'EMT 提现换回法币再购美债'},
     {id:'EMT-004',time:'2026-11-01 11:20:00',type:'payout',direction:'out',channel:'Token Bank',amount:1000000,status:'completed',remarks:'成员提现兑付 Gamma Wealth'},

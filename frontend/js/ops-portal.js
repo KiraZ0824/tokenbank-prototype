@@ -98,20 +98,6 @@ TB.ops.openSeriesReview = function(id) {
 TB.ops.exportSeriesReview = function() { TB.ops._toastExport(); };
 
 /* ====== Series Detail Helpers ====== */
-TB.ops.listSeries = function(id) {
-  TB.ui.confirmModal(
-    TB.ops._t('上架Series', 'List Series'),
-    TB.ops._t('确认上架该Series？上架后成员可购买。', 'Confirm to list this Series? Members can purchase after listing.'),
-    'TB.ops._confirmSuccess'
-  );
-};
-TB.ops.stopPurchase = function(id) {
-  TB.ui.confirmModal(
-    TB.ops._t('停止购买', 'Stop Purchase'),
-    TB.ops._t('确认停止购买？成员将无法继续购买该Series。', 'Confirm to stop purchase? Members cannot buy this Series anymore.'),
-    'TB.ops._confirmSuccess', 'danger'
-  );
-};
 TB.ops.resumePurchase = function(id) {
   TB.ui.confirmModal(
     TB.ops._t('恢复购买', 'Resume Purchase'),
@@ -973,8 +959,6 @@ TB.router.register('ops', {
     html += TB.ui.card(
       TB.ops._t('运营操作', 'Operations Actions'),
       '<div class="flex gap-2">' +
-      '<button class="btn btn-primary btn-sm" onclick="TB.ops.listSeries(\''+s.id+'\')">'+TB.ops._t('上架', 'List')+'</button>' +
-      '<button class="btn btn-sm" onclick="TB.ops.stopPurchase(\''+s.id+'\')">'+TB.ops._t('停止购买', 'Stop Purchase')+'</button>' +
       '<button class="btn btn-sm" onclick="TB.ops.resumePurchase(\''+s.id+'\')">'+TB.ops._t('恢复购买', 'Resume Purchase')+'</button>' +
       '<button class="btn btn-danger btn-sm" onclick="TB.ops.forceDelist(\''+s.id+'\')">'+TB.ops._t('强制下架', 'Force Delist')+'</button>' +
       '</div>'
@@ -1551,7 +1535,7 @@ TB.ops._renderSystemParams = function(activeTab) {
     label: TB.ops._t('报价有效期', 'Quote Validity'), name: 'p_quoteValidity', value: '5', hint: TB.ops._t('报价有效期（分钟）', 'Quote validity period (minutes)'),
   }) +
   TB.ui.formField({
-    label: TB.ops._t('交易费', 'Trade Fee'), name: 'p_tradeFee', value: '20', hint: TB.ops._t('每笔交易手续费（USD）', 'Transaction fee per trade (USD)'),
+    label: TB.ops._t('交易费', 'Trade Fee'), name: 'p_tradeFee', value: '20', hint: TB.ops._t('每笔交易手续费（USB）', 'Transaction fee per trade (USB)'),
   });
 
   /* Capacity Params Tab Content */

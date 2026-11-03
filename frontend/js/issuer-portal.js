@@ -58,8 +58,6 @@ TB.pages.issuer.afterRender = function(){
   tasks.style.height = seriesArea.offsetHeight + 'px';
 };
 TB.pages.issuer.viewQuote = function(id){ TB.utils.toast(TB.pages.issuer.t('报价详情','Quote detail')+' '+id); };
-TB.pages.issuer.openSeries = function(){ TB.ui.confirmModal(TB.pages.issuer.t('上架Series','Open Series'), TB.pages.issuer.t('确认上架该Series？','Confirm to open this series?'), 'TB.pages.issuer.success(\''+TB.pages.issuer.t('Series已上架','Series opened')+'\')'); };
-TB.pages.issuer.stopPurchase = function(){ TB.ui.confirmModal(TB.pages.issuer.t('停止购买','Stop Purchase'), TB.pages.issuer.t('确认停止购买？','Confirm to stop purchase?'), 'TB.pages.issuer.success(\''+TB.pages.issuer.t('已停止购买','Purchase stopped')+'\')', 'danger'); };
 TB.pages.issuer.issuanceSteps = [
   { key:'product-info', labelZh:'产品基本信息', labelEn:'Product Basics' },
   { key:'asset-info', labelZh:'底层资产录入', labelEn:'Underlying Asset' },
@@ -201,12 +199,12 @@ TB.pages.issuer._issuanceStepBody = function(st, step){
     return TB.ui.formField({label:t('产品名称','Product Name'), name:'iss_productName', required:true, value:d.productName || '', placeholder:t('如 R-UST Bond Series 2026-019','e.g. R-UST Bond Series 2026-019')})
       + row2(
         TB.ui.formField({label:t('Series编号','Series ID'), name:'iss_seriesId', value:st.id, disabled:true, hint:t('系统自动生成，不可修改','Auto-generated and read-only')}),
-        TB.ui.formField({label:t('币种','Currency'), name:'iss_currency', value:'USD', disabled:true}))
+        TB.ui.formField({label:t('币种','Currency'), name:'iss_currency', value:'USB', disabled:true}))
       + row2(
         TB.ui.formField({label:t('发行方','Issuer'), name:'iss_issuer', value:'Bison Bank', disabled:true}),
         TB.ui.formField({label:t('托管方','Custodian'), name:'iss_custodian', required:true, value:d.custodian || 'Bison Bank'}))
       + row2(
-        TB.ui.formField({label:t('发行总面值','Total Face Value'), name:'iss_faceTotal', type:'number', required:true, value:d.faceTotal || '', hint:t('USD，按面值步进取整','USD, rounded to the face step')}),
+        TB.ui.formField({label:t('发行总面值','Total Face Value'), name:'iss_faceTotal', type:'number', required:true, value:d.faceTotal || '', hint:t('USB，按面值步进取整','USB, rounded to the face step')}),
         TB.ui.formField({label:t('到期日','Maturity Date'), name:'iss_maturityDate', type:'date', required:true, value:d.maturityDate || ''}))
       + row2(
         TB.ui.formField({label:t('窗口天数','Window Days'), name:'iss_windowDays', type:'number', required:true, value:d.windowDays || '27'}),
@@ -431,7 +429,7 @@ TB.pages.issuer.burnConfirmRows = function(){
     var recons = TB.data.reconciliations.filter(function(r){ return r.series === c.series || r.series === alt; });
     var breaks = recons.filter(function(r){ return r.status === 'break'; }).length;
     return {
-      id:c.id, series:c.series, maturity:s.maturityDate || '-',
+      id:c.id, series:c.series, maturity:s.maturityDate || '-', seriesStatus:s.status || '-',
       redemptions:holds.length,
       redeemedAmt:holds.reduce(function(sum, h){ return sum + h.faceValue; }, 0),
       emtPaid:c.emtPaid !== false,
@@ -441,59 +439,147 @@ TB.pages.issuer.burnConfirmRows = function(){
     };
   });
 };
-TB.pages.issuer.openBurnConfirmDetail = function(id){
+TB.pages.issuer._burnHolds = function(series){
+  var alt = TB.pages.issuer._burnAltKey(series);
+  return TB.data.holdings.filter(function(h){ return h.series === series || h.series === alt; });
+};
+
+/* 前置条件（补充规格 §12 步骤 2）：①Series已到期 ②全部成员赎回完成 ③全部成员EMT兑付完成 ④R-UST归属清零，另加三方对账通过 */
+TB.pages.issuer.burnPrereqs = function(row, holds){
+  var t = TB.pages.issuer.t;
+  var done = ['checkoutCompleted', 'maturityPaid', 'burned'];
+  var remain = holds.reduce(function(s, h){ return done.indexOf(h.status) >= 0 ? s : s + (h.tokens || 0); }, 0);
+  var matured = ['maturity', 'burned'].indexOf(row.seriesStatus) >= 0 || (!!row.maturity && row.maturity !== '-' && row.maturity <= TB.utils.todayStr());
+  return {
+    remainTokens: remain,
+    items: [
+      {ok:matured, label:t('Series已到期','Series Matured'), detail:row.maturity},
+      {ok:holds.length > 0 && remain === 0, label:t('全部成员赎回完成','All Member Redemptions Complete'), detail:row.redemptions + ' ' + t('笔赎回记录','redemption record(s)')},
+      {ok:!!row.emtPaid, label:t('全部成员EMT兑付完成','All Member EMT Payouts Complete'), detail:row.emtPaid ? t('已兑付','Paid') : t('未兑付','Unpaid')},
+      {ok:remain === 0, label:t('R-UST归属清零','R-UST Ownership Cleared'), detail:t('剩余 ','Remaining ') + TB.utils.tokens(remain)},
+      {ok:row.reconStatus === 'matched', label:t('三方对账通过','Three-way Reconciliation Matched'), detail:row.reconStatus === 'matched' ? t('全部一致','All matched') : (row.reconStatus === 'break' ? row.breaks + ' ' + t('笔差异','break(s)') : t('无对账批次','No reconciliation batch'))}
+    ]
+  };
+};
+
+TB.pages.issuer.burnStatusBadge = function(status){
+  var t = TB.pages.issuer.t;
+  if(status === 'pending') return TB.ui.badge(t('待确认','Pending Confirmation'), 'orange');
+  if(status === 'submitted') return TB.ui.badge(t('已发起审批','Approval Submitted'), 'info');
+  if(status === 'rejected') return TB.ui.badge(t('已驳回','Rejected'), 'error');
+  return TB.ui.badge(t('已销毁','Burned'), 'default');
+};
+
+/* 销毁审核弹窗（补充规格 I-10 销毁管理-销毁审核页）：
+ * 审核流程进度 + 申请信息 + 前置条件确认结果 + 成员赎回信息 + 对账情况 + 审核意见（通过选填/驳回必填，≤500字）+ 通过/驳回 */
+TB.pages.issuer.openBurnReview = function(id, readonly){
   var t = TB.pages.issuer.t;
   var row = TB.pages.issuer.burnConfirmRows().find(function(r){ return r.id === id; });
   if(!row) return;
-  var alt = TB.pages.issuer._burnAltKey(row.series);
-  var holds = TB.data.holdings.filter(function(h){ return h.series === row.series || h.series === alt; });
-  var recons = TB.data.reconciliations.filter(function(r){ return r.series === row.series || r.series === alt; });
-  var check = function(ok){ return ok ? TB.ui.badge('✓','success') : TB.ui.badge('✗','error'); };
-  var body = TB.ui.descList([
+  var conf = TB.data.burnConfirms.find(function(c){ return c.id === id; }) || {};
+  var holds = TB.pages.issuer._burnHolds(row.series);
+  var recons = TB.data.reconciliations.filter(function(r){ return r.series === row.series || r.series === TB.pages.issuer._burnAltKey(row.series); });
+  var flow = TB.pages.issuer.flowByType('burn');
+  var user = TB.state.user ? TB.state.user.name : '';
+  var pre = TB.pages.issuer.burnPrereqs(row, holds);
+  var blockers = pre.items.filter(function(p){ return !p.ok; });
+  var editable = !readonly && row.status === 'pending';
+  var totalTokens = holds.reduce(function(s, h){ return s + (h.tokens || 0); }, 0);
+  var body = '';
+  if(flow && flow.nodes.length && flow.enabled){
+    body += TB.ui.stepIndicator(flow.nodes.map(function(n){ return {label:TB.text(n.name), status:'waiting'}; }))
+      + '<div class="text-muted text-sm mt-2 mb-4">' + t('审核确认通过后，从首个节点发起销毁审批','Once this review is confirmed the burn approval starts at the first node') + '：'
+      + TB.text(flow.nodes[0].name) + ' · ' + t('审批人','Approvers') + '：' + flow.nodes[0].approvers.join(', ')
+      + '（' + TB.pages.issuer.modeLabel(flow.nodes[0].mode) + '）</div>';
+  } else {
+    body += TB.ui.alert('warning', t('未配置或未启用销毁审批流程，请先在「审核流程配置」中设置。','The burn approval flow is not configured or is disabled; set it up in Review Flow Config first.'));
+  }
+  if(blockers.length && editable){
+    body += TB.ui.alert('error', t('前置条件不满足，暂不可发起销毁审批：','Prerequisites are not met, the burn approval cannot be initiated: ') + blockers.map(function(b){ return b.label; }).join('、'));
+  }
+  body += TB.ui.descList([
     {label:TB.t('lbl.seriesId'), value:row.series},
     {label:TB.t('lbl.maturityDate'), value:row.maturity},
-    {label:t('Series到期','Series Matured'), value:check(true)},
-    {label:t('全部赎回完成','All Redeemed'), value:check(row.redemptions > 0)},
-    {label:t('EMT兑付成功','EMT Paid'), value:check(row.emtPaid)},
-    {label:t('对账通过','Reconciled'), value:check(row.reconStatus === 'matched')}
+    {label:t('申请人','Applicant'), value:editable ? user : (conf.reviewer || user)},
+    {label:t('生成时间','Generated'), value:row.generatedAt},
+    {label:t('销毁数量','Burn Quantity')+TB.utils.note(t('待销毁 R-UST 总量 = 该周期全部成员赎回面值与对应 token 数。','Burn quantity = the redeemed face value of this cycle and the corresponding token amount.')), value:TB.utils.money(row.redeemedAmt) + ' / ' + TB.utils.tokens(totalTokens)},
+    {label:t('对账结果','Reconciliation Result'), value:row.reconStatus === 'matched' ? TB.ui.badge(row.reconBatches + ' ' + t('批次全部一致','batch(es) all matched'), 'success') : (row.reconStatus === 'break' ? TB.ui.badge(row.breaks + ' ' + t('笔差异','break(s)'), 'error') : TB.ui.badge(t('无对账批次','No batch'), 'default'))},
+    {label:t('当前审核节点','Current Review Node'), value:row.status === 'pending' ? t('未发起（待本次审核确认）','Not started (awaiting this review)') : TB.text(flow && flow.nodes[0] ? flow.nodes[0].name : {zh:'-',en:'-'})},
+    {label:TB.t('status'), value:TB.pages.issuer.burnStatusBadge(row.status)}
   ]);
-  body += '<div class="font-bold mt-4 mb-2">'+t('成员赎回信息','Member Redemption Info')+'</div>'
+  body += '<div class="font-bold mt-4 mb-2">' + t('前置条件确认结果','Prerequisite Check') + '</div>'
+    + TB.ui.descList(pre.items.map(function(p){ return {label:p.label, value:(p.ok ? TB.ui.badge('✓', 'success') : TB.ui.badge('✗', 'error')) + ' ' + p.detail}; }));
+  body += '<div class="font-bold mt-4 mb-2">' + t('成员赎回信息','Member Redemption Info') + '</div>'
     + (holds.length ? TB.ui.table({ columns:[
         {key:'member', label:t('成员','Member')},
         {key:'faceValue', label:TB.t('lbl.faceValue'), align:'right', render:function(r){ return TB.utils.money(r.faceValue); }},
-        {key:'checkin', label:'Check-in'},
-        {key:'maturityDate', label:TB.t('lbl.maturityDate')},
+        {key:'tokens', label:t('Token数量','Tokens'), align:'right', render:function(r){ return TB.utils.tokens(r.tokens); }},
+        {key:'checkin', label:t('起息日','Value Date')},
+        {key:'maturityDate', label:t('赎回日期','Redemption Date')},
         {key:'status', label:TB.t('status'), render:function(r){ return TB.ui.statusBadge(r.status); }}
       ], data:holds, paginate:false }) : TB.ui.emptyState('📭', t('无赎回记录','No redemption records')));
-  body += '<div class="font-bold mt-4 mb-2">'+t('对账情况','Reconciliation Status')+'</div>'
+  body += '<div class="font-bold mt-4 mb-2">' + t('对账情况','Reconciliation Status') + '</div>'
     + (recons.length ? TB.ui.table({ columns:[
         {key:'id', label:t('对账批次号','Batch ID')},
         {key:'date', label:TB.t('date')},
         {key:'status', label:TB.t('status'), render:function(r){ return TB.ui.statusBadge(r.status); }},
         {key:'diffCount', label:t('差异项数','Diff Items'), align:'right'}
       ], data:recons, paginate:false }) : TB.ui.emptyState('📭', t('无对账批次','No reconciliation batches')));
-  TB.ui.modal({ title:t('销毁确认明细','Burn Confirmation Detail')+' · '+row.series, body:body, size:'lg', footer:'<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('close')+'</button>' });
+  body += '<div class="mt-4">' + (editable
+    ? TB.ui.formField({label:t('审核意见','Review Comment'), name:'burn_review_comment', type:'textarea', placeholder:t('通过时选填，驳回时必填；最多 500 字','Optional when approving, required when rejecting; up to 500 characters')})
+    : '<div class="font-bold mb-2">' + t('审核意见','Review Comment') + '</div><div class="text-sm" style="color:var(--text-secondary)">' + TB.utils.esc(conf.reviewComment || t('无','None')) + '</div>'
+      + (conf.reviewer ? '<div class="text-muted text-sm mt-2">' + t('审核人','Reviewer') + '：' + TB.utils.esc(conf.reviewer) + ' · ' + TB.utils.dt(conf.reviewedAt || row.submittedAt) + '</div>' : '')) + '</div>';
+  var footer = '<button class="btn" onclick="TB.ui.closeModal()">' + (editable ? TB.t('cancel') : TB.t('close')) + '</button>';
+  if(editable){
+    footer += '<button class="btn btn-danger" onclick="TB.pages.issuer.rejectBurnConfirm(\'' + id + '\')">' + t('驳回','Reject') + '</button>'
+      + '<button class="btn btn-primary"' + (blockers.length || !flow || !flow.nodes.length || !flow.enabled ? ' disabled' : '') + ' onclick="TB.pages.issuer.confirmBurnReview(\'' + id + '\')">' + t('确认无误并发起销毁审批','Confirm & Submit Burn Approval') + '</button>';
+  }
+  TB.ui.modal({ title:t('销毁审核','Burn Review') + ' · ' + row.series, body:body, size:'lg', footer:footer });
 };
-TB.pages.issuer.submitBurnApproval = function(id){
+
+TB.pages.issuer.confirmBurnReview = function(id){
   var t = TB.pages.issuer.t;
   var row = TB.pages.issuer.burnConfirmRows().find(function(r){ return r.id === id; });
   if(!row) return;
-  if(row.status !== 'pending'){
-    TB.utils.toast(t('该确认单已处理','This confirmation has been processed'), 'info');
+  var comment = TB.utils.getInputVal('burn_review_comment') || '';
+  if(comment.length > 500){
+    TB.utils.toast(t('审核意见最多 500 字','The review comment is limited to 500 characters'), 'error');
     return;
   }
-  if(!row.emtPaid){
-    TB.utils.toast(t('成员 EMT 尚未全部兑付，不能发起销毁审批','Member EMT payouts incomplete; burn approval cannot be initiated'), 'error');
+  var pre = TB.pages.issuer.burnPrereqs(row, TB.pages.issuer._burnHolds(row.series));
+  var bad = pre.items.filter(function(p){ return !p.ok; });
+  if(bad.length){
+    TB.utils.toast(t('前置条件不满足：','Prerequisites not met: ') + bad[0].label, 'error');
     return;
   }
-  if(row.reconStatus !== 'matched'){
-    TB.utils.toast(t('对账存在差异或未对账，请先在对账管理处理','Reconciliation breaks exist; resolve them in Reconciliation first'), 'error');
-    return;
-  }
-  TB.ui.confirmModal(t('发起销毁审批','Submit Burn Approval'),
-    t('确认赎回与对账信息无误，发起该周期销毁审批申请？','Confirm the redemption and reconciliation info are correct and submit the burn approval request for this cycle?'),
-    'TB.pages.issuer._submitBurnDone(\''+id+'\')');
+  TB.pages.issuer._burnComment = comment;
+  TB.pages.issuer._submitBurnDone(id);
 };
+
+TB.pages.issuer.rejectBurnConfirm = function(id){
+  var t = TB.pages.issuer.t;
+  var comment = TB.utils.getInputVal('burn_review_comment') || '';
+  if(!comment){
+    TB.utils.toast(t('驳回时必须填写审核意见','A review comment is required to reject'), 'error');
+    return;
+  }
+  TB.pages.issuer._burnComment = comment;
+  TB.ui.confirmModal(t('驳回销毁确认','Reject Burn Confirmation'), t('确认驳回此销毁申请？驳回后退回发起人修改。','Reject this burn request? It will be returned to the initiator for revision.'), 'TB.pages.issuer._rejectBurnDone(\'' + id + '\')', 'danger');
+};
+
+TB.pages.issuer._rejectBurnDone = function(id){
+  var t = TB.pages.issuer.t;
+  var conf = TB.data.burnConfirms.find(function(c){ return c.id === id; });
+  if(!conf) return;
+  conf.status = 'rejected';
+  conf.reviewComment = TB.pages.issuer._burnComment || '';
+  conf.reviewer = TB.state.user ? TB.state.user.name : '';
+  conf.reviewedAt = TB.utils.nowET();
+  TB.ui.closeModal();
+  TB.utils.toast(t('已驳回，退回发起人修改','Rejected and returned to the initiator'), 'error');
+  TB.router.render();
+};
+
 TB.pages.issuer._submitBurnDone = function(id){
   var t = TB.pages.issuer.t;
   var conf = TB.data.burnConfirms.find(function(c){ return c.id === id; });
@@ -501,12 +587,16 @@ TB.pages.issuer._submitBurnDone = function(id){
   if(!conf || !row) return;
   var user = TB.state.user ? TB.state.user.name : '';
   var brnId = 'BRN-' + String(TB.data.burnRequests.length + 1).padStart(3, '0');
-  TB.data.burnRequests.unshift({ id:brnId, series:row.series, applicant:user, applyTime:TB.utils.nowET(), node:'Maker', status:'pending', completeTime:'-', amount:row.redeemedAmt });
+  TB.data.burnRequests.unshift({ id:brnId, series:row.series, applicant:user, applyTime:TB.utils.nowET(), node:'Maker', status:'pending', completeTime:'-', amount:row.redeemedAmt, reviewComment:TB.pages.issuer._burnComment || '' });
   var flow = TB.pages.issuer.flowByType('burn');
   if(flow && flow.nodes.length && flow.enabled) TB.pages.issuer._startApproval('burn', brnId, user, 'High');
   conf.status = 'submitted';
   conf.submittedAt = TB.utils.nowET();
-  TB.utils.toast(t('已发起销毁审批','Burn approval submitted'), 'success');
+  conf.reviewComment = TB.pages.issuer._burnComment || '';
+  conf.reviewer = user;
+  conf.reviewedAt = TB.utils.nowET();
+  TB.ui.closeModal();
+  TB.utils.toast(t('已发起销毁审批：','Burn approval submitted: ') + brnId, 'success');
   TB.router.render();
 };
 
@@ -869,7 +959,6 @@ TB.router.register('issuer', {
     var emt = TB.pages.issuer.emtCoverSummary();
     html += TB.ui.statCard(TB.pages.issuer.t('EMT Cover需求','EMT Cover Required')+TB.utils.note(TB.pages.issuer.emtNoteRequired()), TB.utils.moneyShort(emt.required), TB.pages.issuer.t('次日赎回 ','Next-day ') + TB.utils.moneyShort(emt.redemption), 'up');
     html += TB.ui.statCard(TB.pages.issuer.t('Cover缺口','Cover Gap')+TB.utils.note(TB.pages.issuer.emtNoteGap()), TB.utils.moneyShort(emt.gap), emt.gap > 0 ? TB.pages.issuer.t('待补充','Top-up pending') : TB.pages.issuer.t('已覆盖','Covered'), emt.gap > 0 ? 'down' : 'up');
-    html += TB.ui.statCard(TB.pages.issuer.t('待办事项','Pending Tasks'), String(pending.length));
     html += '</div>';
     var taskHtml = tasks.map(function(task){ return '<div class="todo-item"><div class="todo-item-main">'+TB.ui.badge(task.type, 'orange')+'<span class="todo-item-text">'+TB.utils.esc(task.source+' · '+task.desc)+'</span></div><div class="todo-item-time">'+TB.utils.dt(task.time)+'</div></div>'; }).join('');
     var viewAll = function(route){ return '<div class="todo-more"><span class="tag-link" onclick="TB.router.navigate(\''+route+'\')">'+TB.pages.issuer.t('查看全部','View All')+' ›</span></div>'; };
@@ -881,7 +970,7 @@ TB.router.register('issuer', {
       {key:'maturityDate', label:TB.t('lbl.maturityDate')}
     ], data: active, paginate: false });
     html += '<div class="dash-split">';
-    html += '<div class="dash-split-narrow">'+TB.ui.card(TB.pages.issuer.t('待办事项','Pending Tasks'), '<div class="dash-rows" id="dash-tasks">'+taskHtml+'</div>'+viewAll('#/review-center'))+'</div>';
+    html += '<div class="dash-split-narrow">'+TB.ui.card(TB.pages.issuer.t('待办事项','Pending Tasks')+' ('+pending.length+')', '<div class="dash-rows" id="dash-tasks">'+taskHtml+'</div>'+viewAll('#/review-center'))+'</div>';
     html += '<div class="dash-split-wide">'+TB.ui.card(TB.pages.issuer.t('活跃Series列表','Active Series List'), '<div id="dash-series">'+seriesTable+'</div>'+viewAll('#/series'))+'</div>';
     html += '</div>';
     return html;
@@ -958,7 +1047,7 @@ TB.router.register('issuer', {
   },
   '/series/:id': function(p){
     var s = TB.pages.issuer.seriesById(p.id);
-    return TB.utils.contentHeader(s.name, '<button class="btn btn-primary" onclick="TB.pages.issuer.openSeries()">'+TB.pages.issuer.t('上架','Open')+'</button><button class="btn btn-primary" onclick="TB.pages.issuer.stopPurchase()">'+TB.pages.issuer.t('停止购买','Stop Purchase')+'</button>') + TB.ui.card(TB.pages.issuer.t('Series详情','Series Detail'), TB.ui.descList([{label:TB.t('lbl.seriesId'), value:s.id},{label:TB.t('lbl.productName'), value:s.name},{label:TB.t('status'), value:TB.ui.statusBadge(s.status)},{label:TB.t('lbl.faceValue'), value:TB.utils.money(s.faceTotal)}])) + TB.ui.tabs({ items:[{key:'basic', label:TB.pages.issuer.t('基本信息','Basic Info'), active:true},{key:'life', label:TB.pages.issuer.t('生命周期','Lifecycle')},{key:'cap', label:TB.pages.issuer.t('容量','Capacity')},{key:'hold', label:TB.pages.issuer.t('持仓','Holdings')},{key:'quote', label:TB.pages.issuer.t('报价','Quotes')},{key:'doc', label:TB.pages.issuer.t('文档','Documents')}], content:{ basic: TB.ui.card(TB.pages.issuer.t('基本信息','Basic Info'), TB.ui.descList([{label:'CUSIP', value:s.cusip},{label:'ISIN', value:s.isin},{label:TB.t('lbl.issuer'), value:s.issuer},{label:TB.t('lbl.custodian'), value:s.custodian}])), life: TB.ui.timeline([{time:s.createdAt,title:TB.pages.issuer.t('创建','Created'),status:'completed'},{time:'2026-11-01',title:TB.pages.issuer.t('审核通过','Approved'),status:'completed'},{time:'2026-11-02',title:TB.pages.issuer.t('铸币中','Minting'),status:'active'}]), cap: TB.ui.progress(78) + '<div class="mt-2">'+TB.pages.issuer.t('容量使用率','Capacity Usage')+'</div>', hold: TB.ui.table({ columns:[{key:'member',label:TB.pages.issuer.t('成员','Member')},{key:'faceValue',label:TB.t('lbl.faceValue'),render:function(r){ return TB.utils.money(r.faceValue); }},{key:'status',label:TB.t('status'),render:function(r){ return TB.ui.statusBadge(r.status); }}], data:TB.data.holdings.filter(function(h){ return h.series === s.id; }) }), quote: TB.ui.table({ columns:[{key:'id',label:'Quote ID'},{key:'sellerYield',label:TB.t('lbl.yield'),render:function(r){ return TB.utils.yield(r.sellerYield); }},{key:'markPrice',label:TB.t('lbl.price'),render:function(r){ return TB.utils.price(r.markPrice); }},{key:'status',label:TB.t('status'),render:function(r){ return TB.ui.statusBadge(r.status); }}], data:TB.data.quotes.filter(function(q){ return q.series === s.id; }) }), doc: TB.ui.alert('info', TB.pages.issuer.t('发行资料已上传并归档。','Documents uploaded and archived.')) } }) ;
+    return TB.utils.contentHeader(s.name) + TB.ui.card(TB.pages.issuer.t('Series详情','Series Detail'), TB.ui.descList([{label:TB.t('lbl.seriesId'), value:s.id},{label:TB.t('lbl.productName'), value:s.name},{label:TB.t('status'), value:TB.ui.statusBadge(s.status)},{label:TB.t('lbl.faceValue'), value:TB.utils.money(s.faceTotal)}])) + TB.ui.tabs({ items:[{key:'basic', label:TB.pages.issuer.t('基本信息','Basic Info'), active:true},{key:'life', label:TB.pages.issuer.t('生命周期','Lifecycle')},{key:'cap', label:TB.pages.issuer.t('容量','Capacity')},{key:'hold', label:TB.pages.issuer.t('持仓','Holdings')},{key:'quote', label:TB.pages.issuer.t('报价','Quotes')},{key:'doc', label:TB.pages.issuer.t('文档','Documents')}], content:{ basic: TB.ui.card(TB.pages.issuer.t('基本信息','Basic Info'), TB.ui.descList([{label:'CUSIP', value:s.cusip},{label:'ISIN', value:s.isin},{label:TB.t('lbl.issuer'), value:s.issuer},{label:TB.t('lbl.custodian'), value:s.custodian}])), life: TB.ui.timeline([{time:s.createdAt,title:TB.pages.issuer.t('创建','Created'),status:'completed'},{time:'2026-11-01',title:TB.pages.issuer.t('审核通过','Approved'),status:'completed'},{time:'2026-11-02',title:TB.pages.issuer.t('铸币中','Minting'),status:'active'}]), cap: TB.ui.progress(78) + '<div class="mt-2">'+TB.pages.issuer.t('容量使用率','Capacity Usage')+'</div>', hold: TB.ui.table({ columns:[{key:'member',label:TB.pages.issuer.t('成员','Member')},{key:'faceValue',label:TB.t('lbl.faceValue'),render:function(r){ return TB.utils.money(r.faceValue); }},{key:'status',label:TB.t('status'),render:function(r){ return TB.ui.statusBadge(r.status); }}], data:TB.data.holdings.filter(function(h){ return h.series === s.id; }) }), quote: TB.ui.table({ columns:[{key:'id',label:'Quote ID'},{key:'sellerYield',label:TB.t('lbl.yield'),render:function(r){ return TB.utils.yield(r.sellerYield); }},{key:'markPrice',label:TB.t('lbl.price'),render:function(r){ return TB.utils.price(r.markPrice); }},{key:'status',label:TB.t('status'),render:function(r){ return TB.ui.statusBadge(r.status); }}], data:TB.data.quotes.filter(function(q){ return q.series === s.id; }) }), doc: TB.ui.alert('info', TB.pages.issuer.t('发行资料已上传并归档。','Documents uploaded and archived.')) } }) ;
   },
   '/quotes': function(){
     var t = TB.pages.issuer.t;
@@ -979,11 +1068,11 @@ TB.router.register('issuer', {
       {key:'emtPaid', label:t('EMT兑付','EMT Payout')+TB.utils.note(t('全部成员 EMT 兑付完成后才允许发起销毁审批。','Burn approval can only be initiated after all member EMT payouts complete.')), render:function(r){ return r.emtPaid ? TB.ui.badge(t('已兑付','Paid'),'success') : TB.ui.badge(t('未兑付','Unpaid'),'error'); }},
       {key:'recon', label:t('对账情况','Reconciliation')+TB.utils.note(t('该周期托管账与平台账的对账批次；存在差异须先在对账管理处理。','Recon batches for this cycle; breaks must be resolved in Reconciliation first.')), render:function(r){ return r.reconStatus === 'matched' ? TB.ui.badge(t('全部一致','All matched'),'success') : (r.reconStatus === 'break' ? TB.ui.badge(r.breaks+' '+t('笔差异','break(s)'),'error') : TB.ui.badge(t('无批次','No batch'),'default')); }},
       {key:'generatedAt', label:t('生成时间','Generated')},
-      {key:'status', label:TB.t('status'), render:function(r){ return r.status === 'pending' ? TB.ui.badge(t('待确认','Pending Confirmation'),'orange') : (r.status === 'submitted' ? TB.ui.badge(t('已发起审批','Approval Submitted'),'info') : TB.ui.badge(t('已销毁','Burned'),'default')); }},
+      {key:'status', label:TB.t('status'), render:function(r){ return TB.pages.issuer.burnStatusBadge(r.status); }},
       {key:'go', label:TB.t('actions'), render:function(r){
-        var detail = '<span class="tag-link" onclick="TB.pages.issuer.openBurnConfirmDetail(\''+r.id+'\')">'+t('查看明细','Detail')+'</span>';
-        if(r.status !== 'pending') return detail;
-        return detail+' <span class="tag-link" onclick="TB.pages.issuer.submitBurnApproval(\''+r.id+'\')">'+t('确认无误并发起销毁审批','Confirm & Submit Burn Approval')+'</span>';
+        return r.status === 'pending'
+          ? '<span class="tag-link" onclick="TB.pages.issuer.openBurnReview(\''+r.id+'\')">'+t('去处理','Handle')+'</span>'
+          : '<span class="tag-link" onclick="TB.pages.issuer.openBurnReview(\''+r.id+'\', true)">'+t('查看明细','Detail')+'</span>';
       }}
     ], data: confirms });
     var historyTable = TB.ui.table({ columns:[
@@ -1025,7 +1114,7 @@ TB.router.register('issuer', {
     }
     var coverTable = TB.ui.table({ columns:[
       {key:'series', label:TB.t('lbl.seriesId')},
-      {key:'type', label:TB.t('type')+TB.utils.note(t('到期兑付按每 token USD 1 支付，由到期法币到账后实时 mint EMT，不需 pre-funding。','Maturity pays USD 1 per token from real-time minted EMT once the fiat lands; no pre-funding.')), render:function(x){ return TB.ui.badge(x.type === 'maturity' ? t('到期兑付','Maturity') : t('次日赎回','Checkout'), x.type === 'maturity' ? 'purple' : 'info'); }},
+      {key:'type', label:TB.t('type')+TB.utils.note(t('到期兑付按每 token USB 1 支付，由到期法币到账后实时 mint EMT，不需 pre-funding。','Maturity pays USB 1 per token from real-time minted EMT once the fiat lands; no pre-funding.')), render:function(x){ return TB.ui.badge(x.type === 'maturity' ? t('到期兑付','Maturity') : t('次日赎回','Checkout'), x.type === 'maturity' ? 'purple' : 'info'); }},
       {key:'dueDate', label:t('赎回日','Redemption Date')},
       {key:'redemption', label:t('次日赎回金额','Redemption Amount'), align:'right', render:function(x){ return x.redemption > 0 ? TB.utils.money(x.redemption) : '-'; }},
       {key:'required', label:t('EMT Cover需求','EMT Cover Required')+TB.utils.note(noteRequired), align:'right', render:function(x){ return x.required > 0 ? TB.utils.money(x.required) : '-'; }},
