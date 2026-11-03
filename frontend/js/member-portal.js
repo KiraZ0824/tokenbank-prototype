@@ -511,15 +511,15 @@ TB.router.register('member', {
           {label:t('当前价格','Current Price')+TB.utils.note(t('该周期对应美债产品（CUSIP '+s.cusip+'）的当前参考价，估值日 '+s.valuationDate+'，来源 '+s.priceSource+'。','Current reference price of the underlying Treasury (CUSIP '+s.cusip+') for this window; valuation date '+s.valuationDate+', source '+s.priceSource+'.')), value:TB.utils.price(s.markPrice)},
           {label:t('发行总面值','Total Face Value'), value:TB.utils.money(s.faceTotal)},
           {label:t('可售额度','Available'), value:TB.utils.money(s.faceAvailable)},
-          {label:TB.t('lbl.maturityDate'), value:s.maturityDate},
+          {label:TB.t('lbl.maturityDate')+TB.utils.note(t('到期日为美东业务日，以美债现货收盘（17:00 ET）为基准换算成本地时间展示。','Maturity is an ET business date, converted to local time from the US Treasury close (17:00 ET).')), value:s.maturityDate},
           {label:t('窗口天数','Window Days')+TB.utils.note(t('该产品允许的最长持有天数；买入时选择的赎回日不得超出。','Maximum holding days for this product; the redemption date chosen at purchase cannot exceed it.')), value:s.windowDays + ' ' + t('天','days')},
           {label:t('参考市场收益率','Reference Yield')+TB.utils.note(t('参考收益率用于预期收益与定金计算，不代表保证收益。','Reference yield drives the expected-return and deposit calculations; not a guaranteed return.')), value:TB.utils.yield(s.refYield)},
-          {label:t('估值日','Valuation Date'), value:s.valuationDate},
+          {label:t('估值日','Valuation Date')+TB.utils.note(t('估值日为美东业务日，收盘价与估值均以当日美债收盘（17:00 ET）为基准。','Valuation date is an ET business date; the close price and valuation are struck at the US Treasury close (17:00 ET).')), value:s.valuationDate},
           {label:t('交易手续费','Transaction Fee')+TB.utils.note(t('每笔买入或预定收取 USD 20，已计入现金应付与预估定金。','USD 20 per buy or booking; included in cash payable and the estimated deposit.')), value:TB.utils.money(20) + ' / ' + t('笔','trade')},
           {label:t('预定定金规则','Booking Deposit Rule')+TB.utils.note(t('收益差 = 卖方收益率 − 参考收益率 = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp；起息日截止（Value Date cut-off）余额不足先给最长 1 小时宽限（参数可调），仍不足则取消订单并没收全部定金。','Yield gap = seller yield − reference yield = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp; if the balance is short at the value-date cut-off a 1-hour grace (configurable) applies, after which the order is cancelled and the full deposit is forfeited.')), value:t('USD 20 + 面值 × 收益差 × 窗口天数 / 365','USD 20 + face × yield gap × window days / 365')},
           {label:t('报价提供方','Quote Provider'), value:s.quoteProvider},
           {label:t('价格来源','Price Source'), value:s.priceSource},
-          {label:t('报价时间','Quote Timestamp'), value:s.quoteTime},
+          {label:t('报价时间','Quote Timestamp')+TB.utils.note(t('Bison 报价时间按美东时间记录并换算为本地时间展示；收盘价口径以当日美债收盘（17:00 ET）为准。','Bison quote timestamps are recorded in ET and converted to local time; close-of-day pricing follows the US Treasury close (17:00 ET).')), value:s.quoteTime},
           {label:t('最小购买额','Min Purchase'), value:TB.utils.money(100000)},
           {label:t('购买步进','Purchase Step'), value:TB.utils.money(10000)}
         ]))

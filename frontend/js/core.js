@@ -152,8 +152,10 @@ TB.utils = {
 };
 
 /* ====== Time Zone ======
- * 后端时间戳统一按美东时间(ET)存储；界面按登录机器本地时区展示，并在括号内以「时间 ET」标注美东时间。 */
+ * 后端时间戳统一按美东时间(ET)存储；界面按登录机器本地时区展示，并在括号内以「时间 ET」标注美东时间。
+ * 只有日期的业务值（到期日、估值日、起息日/赎回日等）按美债现货收盘时点 TB.ET_CLOSE 作为美东基准换算。 */
 TB.TIME_ZONE = 'America/New_York';
+TB.ET_CLOSE = '17:00:00';
 TB.DATETIME_RE = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/;
 TB.DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -190,10 +192,11 @@ TB.utils.tzNote = function(){
     ? '时间按本机时区 '+z+' 展示，括号内为美东时间 ET。'
     : 'Times display in your local timezone '+z+' with US Eastern (ET) in parentheses.';
 };
-/* 展示用：统一为 本地时间 (美东时间 ET)。带时间戳按 ET 解析换算；纯日期视为美东业务日 00:00 换算，不丢时区信息 */
+/* 展示用：统一为 本地时间 (美东时间 ET)。带时间戳按 ET 解析换算；纯日期为美东业务日，
+ * 以美债现货收盘 / 系统 cut-off 时点 TB.ET_CLOSE 为基准换算，到期日、估值日、报价日等口径一致 */
 TB.utils.dt = function(str){
   if(str == null || str === '' || str === '-') return str || '-';
-  var src = TB.DATE_RE.test(str) ? str + ' 00:00:00' : str;
+  var src = TB.DATE_RE.test(str) ? str + ' ' + TB.ET_CLOSE : str;
   if(!TB.DATETIME_RE.test(src)) return String(str);
   var epoch = TB.utils.parseET(src);
   if(epoch === null) return String(str);
