@@ -604,7 +604,7 @@ TB.router.register('member', {
     html += TB.ui.table({ columns:[{label:TB.pages.member.t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role'},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
       var off = r.raw === 'deactivated';
       return '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? TB.pages.member.t('启用','Enable') : TB.pages.member.t('禁用','Disable'))+'</span>';
-    }}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:TB.pages.member.t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'}] });
+    }}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:TB.pages.member.t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'},{label:TB.t('resetPwd'),onClick:'TB.pages.member.resetAccountPwd',type:'text'}] });
     return html;
   },
   '/accounts/new': function(){
@@ -649,7 +649,11 @@ TB.router.register('member', {
       {key:'accounts',label:t('账号管理','Accounts'),active:true},
       {key:'compliance',label:t('合规与安全','Compliance & Security')}
     ], content:{
-      accounts: TB.ui.table({ columns:[{label:t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role',render:function(r){ return roleName(r.role); }},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'}] }),
+      accounts: TB.ui.table({ columns:[{label:t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role',render:function(r){ return roleName(r.role); }},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
+        var off = r.raw === 'deactivated';
+        return '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.member.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('禁用','Disable'))+'</span> '
+          + '<span class="tag-link" onclick="TB.pages.member.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
+      }}], data:TB.pages.member._accountRows(), actions:[{label:TB.t('edit'),onClick:'TB.pages.member.editAccount',type:'text'},{label:t('权限管理','Permissions'),onClick:'TB.pages.member.manageAccountPermissions',type:'text'}] }),
       compliance: TB.ui.card(t('KYB状态','KYB Status'), TB.ui.descList([{label:TB.t('status'), value:TB.ui.statusBadge('active')},{label:t('更新时间','Updated At'), value:'2026-11-02 10:00:00'}])) + TB.ui.card(t('合规声明','Compliance Declarations'), TB.ui.descList(TB.pages.member._complianceDecls()))
     }});
     return html;
@@ -729,5 +733,26 @@ TB.pages.member._toggleAccountDone = function(id){
   a.status = a.status === 'deactivated' ? 'active' : 'deactivated';
   a.statusChangedAt = TB.utils.nowET();
   TB.utils.toast(a.status === 'deactivated' ? t('账号已禁用','Account disabled') : t('账号已启用','Account enabled'), a.status === 'deactivated' ? 'error' : 'success');
+  TB.router.render();
+};
+TB.pages.member.resetAccountPwd = function(id){
+  var t = TB.pages.member.t;
+  var a = TB.pages.member._accountById(id);
+  if(!a) return;
+  if(a.status === 'deactivated'){
+    TB.utils.toast(t('已停用账号需先启用才能重置密码','Enable the account before resetting its password'), 'error');
+    return;
+  }
+  TB.ui.confirmModal(t('重置密码','Reset Password'),
+    t('将生成临时密码并发送至账号邮箱，用户下次登录须修改。确认重置？','A temporary password will be generated and sent to the account email; the user must change it at next sign-in. Confirm?'),
+    'TB.pages.member._resetPwdDone(\'' + id + '\')');
+};
+TB.pages.member._resetPwdDone = function(id){
+  var t = TB.pages.member.t;
+  var a = TB.pages.member._accountById(id);
+  if(!a) return;
+  a.pwdResetAt = TB.utils.nowET();
+  a.pwdResetBy = TB.state.user ? TB.state.user.name : '';
+  TB.utils.toast(t('密码已重置，临时密码已发送至 ','Password reset; temporary password sent to ') + a.email, 'success');
   TB.router.render();
 };

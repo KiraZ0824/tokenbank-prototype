@@ -15,6 +15,50 @@ TB.pages.issuer.toast = function(msg){ TB.utils.toast(msg, 'info'); };
 TB.pages.issuer.success = function(msg){ TB.utils.toast(msg, 'success'); };
 TB.pages.issuer.viewSeries = function(id){ TB.router.navigate('#/series/'+id); };
 TB.pages.issuer.managePermissions = function(id){ TB.router.navigate('#/accounts/'+id+'/permissions'); };
+TB.pages.issuer.toggleAccountStatus = function(id){
+  var t = TB.pages.issuer.t;
+  var a = TB.data.accounts.find(function(x){ return x.id === id; });
+  if(!a) return;
+  if(TB.state.user && TB.state.user.email === a.email){
+    TB.utils.toast(t('不能停用当前登录账号','You cannot disable the account you are signed in with'), 'error');
+    return;
+  }
+  var disabling = a.status === 'active';
+  TB.ui.confirmModal(disabling ? t('停用账号','Disable Account') : t('启用账号','Enable Account'),
+    disabling ? t('停用后该账号将无法登录并失去全部权限，确认停用？','Once disabled the account can no longer sign in and loses all permissions. Confirm?')
+              : t('启用后该账号恢复登录与已分配的权限，确认启用？','Once enabled the account regains sign-in and its assigned permissions. Confirm?'),
+    'TB.pages.issuer._toggleAccountDone(\'' + id + '\')', disabling ? 'danger' : '');
+};
+TB.pages.issuer._toggleAccountDone = function(id){
+  var t = TB.pages.issuer.t;
+  var a = TB.data.accounts.find(function(x){ return x.id === id; });
+  if(!a) return;
+  a.status = a.status === 'active' ? 'deactivated' : 'active';
+  a.statusChangedAt = TB.utils.nowET();
+  TB.utils.toast(a.status === 'deactivated' ? t('账号已停用','Account disabled') : t('账号已启用','Account enabled'), a.status === 'deactivated' ? 'error' : 'success');
+  TB.router.render();
+};
+TB.pages.issuer.resetAccountPwd = function(id){
+  var t = TB.pages.issuer.t;
+  var a = TB.data.accounts.find(function(x){ return x.id === id; });
+  if(!a) return;
+  if(a.status !== 'active'){
+    TB.utils.toast(t('已停用账号需先启用才能重置密码','Enable the account before resetting its password'), 'error');
+    return;
+  }
+  TB.ui.confirmModal(t('重置密码','Reset Password'),
+    t('将生成临时密码并发送至账号邮箱，用户下次登录须修改。确认重置？','A temporary password will be generated and sent to the account email; the user must change it at next sign-in. Confirm?'),
+    'TB.pages.issuer._resetPwdDone(\'' + id + '\')');
+};
+TB.pages.issuer._resetPwdDone = function(id){
+  var t = TB.pages.issuer.t;
+  var a = TB.data.accounts.find(function(x){ return x.id === id; });
+  if(!a) return;
+  a.pwdResetAt = TB.utils.nowET();
+  a.pwdResetBy = TB.state.user ? TB.state.user.name : '';
+  TB.utils.toast(t('密码已重置，临时密码已发送至 ','Password reset; temporary password sent to ') + a.email, 'success');
+  TB.router.render();
+};
 TB.pages.issuer.newAccount = function(){
   var t = TB.pages.issuer.t;
   var body = TB.ui.formField({label:TB.t('lbl.email'), name:'new_email', type:'text', required:true})
@@ -1256,7 +1300,12 @@ TB.router.register('issuer', {
       {key:'org', label:t('所属机构','Organization')},
       {key:'status', label:TB.t('status'), render:function(r){ return TB.ui.statusBadge(r.status); }},
       {key:'created', label:TB.t('created')},
-      {key:'lastLogin', label:TB.t('lastLogin')}
+      {key:'lastLogin', label:TB.t('lastLogin')},
+      {key:'go', label:TB.t('actions'), render:function(r){
+        var off = r.status !== 'active';
+        return '<span class="tag-link" style="color:'+(off ? 'var(--success)' : 'var(--error)')+'" onclick="TB.pages.issuer.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('停用','Disable'))+'</span> '
+          + '<span class="tag-link" onclick="TB.pages.issuer.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
+      }}
     ], data:TB.data.accounts.filter(function(a){ return a.org === 'Bison Bank'; }), actions:[{label:t('权限管理','Permissions'), onClick:'TB.pages.issuer.managePermissions', type:'text'}] });
   },
   '/accounts/:accountId/permissions': function(p){

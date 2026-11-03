@@ -258,6 +258,7 @@ TB.data = {
     {id:'MEM-004',name:'Delta Asset Management',remiId:'RM-DELTA-004',type:'Member',country:'United Kingdom',kyb:'Review',subStatus:'Pending',emtBalance:0,createdAt:'2026-10-28',status:'pendingActivation'},
     {id:'MEM-005',name:'Epsilon Investments',remiId:'RM-EPSI-005',type:'Member',country:'Japan',kyb:'Passed',subStatus:'Active',emtBalance:15200000,createdAt:'2026-07-10',status:'suspended'},
     {id:'MEM-006',name:'Zeta Financial Group',remiId:'RM-ZETA-006',type:'Issuer',country:'Luxembourg',kyb:'Passed',subStatus:'Active',emtBalance:50000000,createdAt:'2026-06-01',status:'active'},
+    {id:'MEM-007',name:'Bison Bank',remiId:'RM-BISON-001',type:'Issuer',country:'Luxembourg',kyb:'Passed',subStatus:'Active',emtBalance:18500000,createdAt:'2026-05-20',status:'active'},
   ],
   transactions: [
     {id:'TX-20261102-001',time:'2026-11-02 10:15:00',type:'Purchase',amount:500000,fee:20,status:'settled',series:'R-UST-2026-001',member:'Alpha Fund Management',remarks:'DVP settled'},

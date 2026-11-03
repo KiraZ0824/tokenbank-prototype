@@ -405,19 +405,44 @@ TB.ops.openEditAccount = function(id) {
 TB.ops.toggleAccountStatus = function(id) {
   var a = TB.data.accounts.find(function(x) { return x.id === id; });
   if (!a) return;
+  if (TB.state.user && TB.state.user.email === a.email) {
+    TB.utils.toast(TB.ops._t('不能停用当前登录账号', 'You cannot disable the account you are signed in with'), 'error');
+    return;
+  }
   var isActive = a.status === 'active';
-  var title = isActive ? TB.t('disable') : TB.t('enable');
-  var msg = isActive
-    ? TB.ops._t('确认停用账号 ', 'Confirm to disable account ') + a.name + '?'
-    : TB.ops._t('确认启用账号 ', 'Confirm to enable account ') + a.name + '?';
-  TB.ui.confirmModal(title, msg, 'TB.ops._confirmSuccess');
+  TB.ui.confirmModal(
+    isActive ? TB.t('disable') : TB.t('enable'),
+    isActive ? TB.ops._t('确认停用账号 ', 'Confirm to disable account ') + a.name + '?' : TB.ops._t('确认启用账号 ', 'Confirm to enable account ') + a.name + '?',
+    'TB.ops._toggleAccountDone(\'' + id + '\')',
+    isActive ? 'danger' : '');
+};
+TB.ops._toggleAccountDone = function(id) {
+  var a = TB.data.accounts.find(function(x) { return x.id === id; });
+  if (!a) return;
+  a.status = a.status === 'active' ? 'deactivated' : 'active';
+  a.statusChangedAt = TB.utils.nowET();
+  TB.utils.toast(a.status === 'deactivated' ? TB.ops._t('账号已停用', 'Account disabled') : TB.ops._t('账号已启用', 'Account enabled'), a.status === 'deactivated' ? 'error' : 'success');
+  TB.router.render();
 };
 TB.ops.resetAccountPwd = function(id) {
+  var a = TB.data.accounts.find(function(x) { return x.id === id; });
+  if (!a) return;
+  if (a.status === 'deactivated') {
+    TB.utils.toast(TB.ops._t('已停用账号需先启用才能重置密码', 'Enable the account before resetting its password'), 'error');
+    return;
+  }
   TB.ui.confirmModal(
     TB.t('resetPwd'),
     TB.ops._t('确认重置该账号的密码？重置后将发送临时密码至邮箱。', 'Confirm to reset password? A temporary password will be sent to the email.'),
-    'TB.ops._confirmSuccess'
-  );
+    'TB.ops._resetPwdDone(\'' + id + '\')');
+};
+TB.ops._resetPwdDone = function(id) {
+  var a = TB.data.accounts.find(function(x) { return x.id === id; });
+  if (!a) return;
+  a.pwdResetAt = TB.utils.nowET();
+  a.pwdResetBy = TB.state.user ? TB.state.user.name : '';
+  TB.utils.toast(TB.ops._t('密码已重置，临时密码已发送至 ', 'Password reset; temporary password sent to ') + a.email, 'success');
+  TB.router.render();
 };
 TB.ops.unlockAccount = function(id) {
   TB.ui.confirmModal(
@@ -780,7 +805,7 @@ TB.router.register('ops', {
         {key: 'wallet', label: TB.ops._t('钱包资金', 'Wallet & Funds')},
         {key: 'tx', label: TB.t('nav.transactions')},
         {key: 'holdings', label: TB.t('nav.holdings')},
-        {key: 'subacc', label: TB.ops._t('子账号', 'Sub-accounts')},
+        {key: 'subacc', label: TB.ops._t('机构账号', 'Institution Accounts')},
       ],
       content: {
         basic: TB.ui.descList([
@@ -821,14 +846,26 @@ TB.router.register('ops', {
           ],
           data: memberHoldings,
         }) : TB.ui.emptyState('📋', TB.t('noData')),
-        subacc: TB.ui.table({
-          columns: [
-            {key: 'id', label: TB.ops._t('子账号ID', 'Sub-account ID')},
-            {key: 'name', label: TB.ops._t('账号名', 'Name')},
-            {key: 'role', label: TB.t('lbl.role')},
-          ],
-          data: TB.data.accounts.filter(function(a) { return a.org === m.name; }),
-        }),
+        subacc: (function(){
+          var orgAccounts = TB.data.accounts.filter(function(a) { return a.org === m.name; });
+          return '<div class="text-muted text-sm mb-2">' + TB.ops._t('成员端与发行端机构的管理员及子账号由运营在此管理：停用、启用与重置密码；机构内部的其余账号维护在各自门户完成。', 'Operations manages the admins and sub-accounts of member and issuer institutions here: disable, enable and password reset; the remaining account maintenance happens inside each institution portal.') + '</div>'
+            + (orgAccounts.length ? TB.ui.table({
+              columns: [
+                {key: 'name', label: TB.ops._t('账号名', 'Account')},
+                {key: 'email', label: TB.t('lbl.email')},
+                {key: 'role', label: TB.t('lbl.role')},
+                {key: 'status', label: TB.t('status'), render: function(r) { return TB.ui.statusBadge(r.status); }},
+                {key: 'lastLogin', label: TB.t('lbl.lastLogin')},
+                {key: 'go', label: TB.t('actions'), render: function(r) {
+                  var off = r.status !== 'active';
+                  return '<span class="tag-link" style="color:' + (off ? 'var(--success)' : 'var(--error)') + '" onclick="TB.ops.toggleAccountStatus(\'' + r.id + '\')">' + (off ? TB.t('enable') : TB.t('disable')) + '</span> '
+                    + '<span class="tag-link" onclick="TB.ops.resetAccountPwd(\'' + r.id + '\')">' + TB.t('resetPwd') + '</span>';
+                }},
+              ],
+              data: orgAccounts,
+              paginate: false,
+            }) : TB.ui.emptyState('📋', TB.t('noData')));
+        })(),
       },
     });
 
@@ -1177,7 +1214,9 @@ TB.router.register('ops', {
 
   /* ---- 13. /accounts — Platform Account Management ---- */
   '/accounts': function(params) {
+    var opsAccounts = TB.data.accounts.filter(function(a) { return a.org === 'TokenBank'; });
     var html = TB.utils.contentHeader(TB.t('nav.platformAccounts'), '<button class="btn btn-sm btn-primary" onclick="TB.ops.openCreateAccount()">'+TB.t('create')+'</button>');
+    html += '<div class="text-muted text-sm mb-2">' + TB.ops._t('本页仅管理运营端（TokenBank）账号；成员端与发行端账号由各自机构在自己的账号管理中维护，机构管理员账号在成员管理中管理。', 'This page manages operations (TokenBank) accounts only; member and issuer accounts are maintained in their own portals, and their institution admins are managed under Member Management.') + '</div>';
 
     html += TB.ui.filterBar({
       fields: [
@@ -1192,12 +1231,6 @@ TB.router.register('ops', {
           {value: 'reviewer', label: 'Reviewer'},
           {value: 'operations', label: 'Operations'},
         ]},
-        {name: 'org', label: TB.ops._t('所属机构', 'Organization'), type: 'select', options: [
-          {value: '', label: TB.t('all')},
-          {value: 'alpha', label: 'Alpha Fund Management'},
-          {value: 'bison', label: 'Bison Bank'},
-          {value: 'tb', label: 'TokenBank'},
-        ]},
         {name: 'keyword', label: TB.ops._t('关键词', 'Keyword'), placeholder: TB.ops._t('账号名/邮箱', 'Name / Email')},
       ],
     });
@@ -1207,24 +1240,18 @@ TB.router.register('ops', {
         {key: 'name', label: TB.ops._t('账号名', 'Account Name')},
         {key: 'email', label: TB.t('lbl.email')},
         {key: 'role', label: TB.t('lbl.role')},
-        {key: 'org', label: TB.ops._t('所属机构', 'Organization')},
-        {key: 'type', label: TB.ops._t('账号类型', 'Account Type'), render: function(r) {
-          if (r.org === 'TokenBank') return TB.t('portal.ops');
-          if (r.org === 'Bison Bank') return TB.t('portal.issuer');
-          return TB.t('portal.member');
-        }},
         {key: 'status', label: TB.t('status'), render: function(r) { return TB.ui.statusBadge(r.status); }},
         {key: 'created', label: TB.t('lbl.created')},
         {key: 'lastLogin', label: TB.t('lbl.lastLogin')},
       ],
-      data: TB.data.accounts,
+      data: opsAccounts,
       actions: [
         {label: TB.t('edit'), onClick: 'TB.ops.openEditAccount', type: 'text'},
         {label: TB.t('disable'), onClick: 'TB.ops.toggleAccountStatus', type: 'text'},
         {label: TB.t('resetPwd'), onClick: 'TB.ops.resetAccountPwd', type: 'text'},
         {label: TB.ops._t('解锁', 'Unlock'), onClick: 'TB.ops.unlockAccount', type: 'text'},
       ],
-      pagination: {total: TB.data.accounts.length, pageSize: 10, current: 1},
+      pagination: {total: opsAccounts.length, pageSize: 10, current: 1},
     });
 
     return html;
