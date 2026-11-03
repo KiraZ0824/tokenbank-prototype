@@ -503,9 +503,41 @@ TB.ops.toggleRolePerm = function(portal, key){
 };
 TB.ops.saveRolePerms = function(){
   var role = TB.data.platformRoles.find(function(r){ return r.id === TB.ops._roleSel; });
-  if(!role || role.portal !== 'ops') return;
+  if(!role || role.fixed) return;
   role.grants = JSON.parse(JSON.stringify(TB.ops._roleDraft || role.grants));
-  TB.utils.toast(TB.ops._t('运营端功能权限配置已保存', 'Ops permission configuration saved'), 'success');
+  TB.utils.toast(TB.ops._t('功能权限配置已保存', 'Permission configuration saved'), 'success');
+  TB.router.render();
+};
+TB.ops.openCreateRole = function(){
+  var t = TB.ops._t;
+  var body = TB.ui.formField({label:t('角色名称','Role Name'), name:'role_name_zh', required:true})
+    + TB.ui.formField({label:t('角色名称（英文）','Role Name (EN)'), name:'role_name_en'})
+    + TB.ui.formField({label:t('所属端','Portal'), name:'role_portal', type:'select', options:[
+        {value:'ops', label:t('运营端','Operations Portal'), selected:true},
+        {value:'member', label:t('成员机构端','Member Portal')},
+        {value:'issuer', label:t('发行方端','Issuer Portal')}]})
+    + TB.ui.formField({label:t('角色描述','Description'), name:'role_desc', type:'textarea'});
+  TB.ui.modal({
+    title:t('新增角色','Create Role'),
+    body:body,
+    footer:'<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button><button class="btn btn-primary" onclick="TB.ops.createRole()">'+TB.t('create')+'</button>'
+  });
+};
+TB.ops.createRole = function(){
+  var t = TB.ops._t;
+  var zh = (TB.utils.getInputVal('role_name_zh') || '').trim();
+  if(!zh){ TB.utils.toast(t('请填写角色名称','Role name is required'), 'error'); return; }
+  if(TB.data.platformRoles.some(function(r){ return TB.text(r.name) === zh; })){ TB.utils.toast(t('角色名称已存在','Role name already exists'), 'error'); return; }
+  var en = (TB.utils.getInputVal('role_name_en') || '').trim() || zh;
+  var portal = TB.utils.getInputVal('role_portal') || 'ops';
+  var desc = (TB.utils.getInputVal('role_desc') || '').trim() || zh;
+  var role = {id:'role_' + Date.now().toString(36), portal:portal, name:{zh:zh, en:en}, desc:{zh:desc, en:desc}, grants:{}};
+  role.grants[portal] = [];
+  TB.data.platformRoles.push(role);
+  TB.ui.closeModal();
+  TB.ops._roleSel = role.id;
+  TB.ops._roleDraft = null;
+  TB.utils.toast(t('角色已创建，请勾选其功能权限后保存','Role created; tick its function permissions and save'), 'success');
   TB.router.render();
 };
 TB.ops._roleHolders = function(role){
@@ -1259,8 +1291,8 @@ TB.router.register('ops', {
     var role = roles.find(function(r){ return r.id === TB.ops._roleSel; });
     if(!TB.ops._roleDraft) TB.ops._roleDraft = JSON.parse(JSON.stringify(role.grants));
     var portalName = {member:t('成员机构端','Member Portal'), issuer:t('发行方端','Issuer Portal'), ops:t('运营端','Operations Portal')};
-    var html = TB.utils.contentHeader(TB.t('nav.roles'));
-    html += '<div class="text-muted text-sm mb-2">' + t('默认角色按端划分：成员机构端 Admin 与发行方端 Admin 默认拥有各自门户的全部页面功能；运营端 Admin 拥有运营端全部功能，并负责运营端的功能权限配置；系统运维仅持有运营端系统管理类功能。', 'Default roles are per portal: Member Admin and Issuer Admin hold all functions of their own portal; Ops Admin holds all ops functions and configures ops permissions; System Operations holds ops system-management functions only.') + '</div>';
+    var html = TB.utils.contentHeader(TB.t('nav.roles'), '<button class="btn btn-sm btn-primary" onclick="TB.ops.openCreateRole()">' + t('新增角色','Create Role') + '</button>');
+    html += '<div class="text-muted text-sm mb-2">' + t('默认角色按端划分：成员机构端 Admin 与发行方端 Admin 默认拥有各自门户的全部页面功能；运营端 Admin 拥有运营端全部功能，并负责功能权限配置；系统运维仅持有运营端系统管理类功能。可通过「新增角色」创建自定义角色，并在其所属端勾选功能权限。', 'Default roles are per portal: Member Admin and Issuer Admin hold all functions of their own portal; Ops Admin holds all ops functions and configures permissions; System Operations holds ops system-management functions only. Use "Create Role" to add custom roles and tick functions of their own portal.') + '</div>';
 
     var sidebarHtml = '<div style="width:260px;flex-shrink:0">';
     roles.forEach(function(r){
@@ -1273,7 +1305,7 @@ TB.router.register('ops', {
     sidebarHtml += '</div>';
 
     var section = function(portal){
-      var editable = role.portal === 'ops' && portal === 'ops';
+      var editable = !role.fixed && portal === role.portal;
       var grants = editable ? TB.ops._roleDraft : role.grants;
       var h = '<div class="font-bold mt-4 mb-2">' + portalName[portal]
         + (editable ? '' : ' <span class="text-muted text-sm">' + t('（默认全量/无，不在此配置）','(default; not configurable here)') + '</span>') + '</div>';
@@ -1293,9 +1325,9 @@ TB.router.register('ops', {
     var holders = TB.ops._roleHolders(role);
     var right = TB.ui.card(t('功能权限（分端 → 分功能）','Function Permissions (portal → function)'),
       section('member') + section('issuer') + section('ops'),
-      role.portal === 'ops'
+      !role.fixed
         ? '<button class="btn btn-sm btn-primary" onclick="TB.ops.saveRolePerms()">' + TB.t('save') + '</button>'
-        : '<div class="form-hint">' + t('该角色权限为其门户全量功能，成员/发行端内部的子账号权限在各自门户的账号管理中维护。','This role holds all functions of its portal; sub-account permissions inside that portal are maintained in its own account management.') + '</div>');
+        : '<div class="form-hint">' + t('该默认角色权限为其门户全量功能，不可调整；成员/发行端内部的子账号权限在各自门户的账号管理中维护。新增角色可在其所属端勾选功能权限。','This default role holds all functions of its portal and is not adjustable; sub-account permissions inside that portal are maintained in its own account management. New roles can tick functions of their own portal.') + '</div>');
     right += TB.ui.card(t('角色成员','Role Holders'), holders.length ? TB.ui.table({
       columns: [
         {key: 'name', label: t('账号名','Account')},

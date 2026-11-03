@@ -494,8 +494,8 @@ TB.data.permCatalog = {
  * 运营端 Admin 持有运营端全量功能并负责运营端功能权限配置，系统运维仅持系统管理类功能。 */
 TB.data.platformRoles = [
   {id:'ops_admin', portal:'ops', name:{zh:'运营端 Admin',en:'Ops Admin'}, desc:{zh:'运营端全部功能，并可配置运营端功能权限',en:'All ops functions; configures ops permissions'}, grants:{ops:'all'}},
-  {id:'member_admin', portal:'member', name:{zh:'成员机构端 Admin',en:'Member Admin'}, desc:{zh:'成员机构端全部页面功能',en:'All member-portal functions'}, grants:{member:'all'}},
-  {id:'issuer_admin', portal:'issuer', name:{zh:'发行方端 Admin',en:'Issuer Admin'}, desc:{zh:'发行方端全部页面功能',en:'All issuer-portal functions'}, grants:{issuer:'all'}},
+  {id:'member_admin', portal:'member', fixed:true, name:{zh:'成员机构端 Admin',en:'Member Admin'}, desc:{zh:'成员机构端全部页面功能',en:'All member-portal functions'}, grants:{member:'all'}},
+  {id:'issuer_admin', portal:'issuer', fixed:true, name:{zh:'发行方端 Admin',en:'Issuer Admin'}, desc:{zh:'发行方端全部页面功能',en:'All issuer-portal functions'}, grants:{issuer:'all'}},
   {id:'sys_ops', portal:'ops', name:{zh:'系统运维',en:'System Operations'}, desc:{zh:'运营端系统管理类功能',en:'Ops system-management functions'}, grants:{ops:['ops.accounts','ops.roles','ops.params','ops.audit','ops.monitor','ops.announce']}},
 ];
 TB.data.roles = {
