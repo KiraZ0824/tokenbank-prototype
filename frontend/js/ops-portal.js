@@ -84,7 +84,7 @@ TB.ops._keyReminders = function(){
   var items = [];
   var emt = TB.pages.issuer.emtCoverSummary();
   if(emt.gap > 0){
-    items.push({tag:TB.ops._t('Cover','Cover'), text:TB.ops._t('次日赎回 Cover 缺口 ','Next-day cover gap ') + TB.utils.moneyShort(emt.gap) + TB.ops._t('，系统已通知 Bison 收盘后补足，补足前相关 Checkout 顺延至下一个 close。', '; Bison has been notified to top up after the close, and affected checkouts roll to the next close until covered.'), route:'#/checkout-maturity', action:TB.ops._t('查看','View')});
+    items.push({tag:TB.ops._t('Cover','Cover'), text:TB.ops._t('次日赎回 Cover 缺口 ','Next-day cover gap ') + TB.utils.moneyShort(emt.gap) + TB.ops._t('，系统已通知 Bison 收盘后补足，补足前相关 Checkout 顺延至下一个 close。', '; Bison has been notified to top up after the close, and affected checkouts roll to the next close until covered.'), route:'#/product-monitor', action:TB.ops._t('查看','View')});
   }
   var breaks = TB.data.reconciliations.filter(function(r){ return r.status === 'break'; });
   if(breaks.length){
@@ -285,45 +285,24 @@ TB.ops.viewReviewDetail = function(id) {
   else { TB.ops.openReviewTask(id); }
 };
 /* ====== Checkout/Maturity Helpers ====== */
-TB.ops.viewCheckoutDetail = function(id) {
+TB.ops.viewMonitorDetail = function(seriesId) {
+  var s = TB.data.series.find(function(x){ return x.id === seriesId; });
+  if(!s) return;
+  var holds = TB.data.holdings.filter(function(h){ return h.series === s.id; });
+  var done = ['checkoutCompleted', 'maturityPaid', 'burned'];
+  var settled = holds.filter(function(h){ return done.indexOf(h.status) >= 0; }).length;
+  var progress = holds.length ? Math.round(settled / holds.length * 100) : (s.status === 'burned' ? 100 : 0);
   var body = TB.ui.descList([
-    {label: TB.ops._t('处理编号', 'Task ID'), value: id},
-    {label: TB.ops._t('处理类型', 'Type'), value: TB.ops._t('到期兑付', 'Maturity Settlement')},
-    {label: TB.t('status'), value: TB.ui.statusBadge('processing')},
-    {label: TB.ops._t('兑付进度', 'Progress'), value: '45%'},
-  ]);
-  body += TB.ui.progress(45);
-  TB.ui.modal({ title: TB.ops._t('处理详情', 'Process Detail'), body: body, size: 'lg' });
-};
-TB.ops.openTriggerCheckout = function(id) {
-  var body = TB.ui.descList([
-    {label: TB.t('lbl.seriesId'), value: id},
-    {label: TB.ops._t('处理类型', 'Type'), value: TB.t('lbl.checkout')},
-  ]);
-  body += TB.ui.formField({
-    label: TB.ops._t('处理说明', 'Note'),
-    name: 'checkout_note',
-    type: 'textarea',
-    placeholder: TB.ops._t('请输入处理说明', 'Enter note'),
-  });
-  var footer = '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button>' +
-    '<button class="btn btn-primary" onclick="TB.ops._toastSubmitted()">'+TB.t('submit')+'</button>';
-  TB.ui.modal({ title: TB.ops._t('触发Checkout', 'Trigger Checkout'), body: body, footer: footer });
-};
-TB.ops.openTriggerMaturity = function(id) {
-  var body = TB.ui.descList([
-    {label: TB.t('lbl.seriesId'), value: id},
-    {label: TB.ops._t('处理类型', 'Type'), value: TB.ops._t('到期处理', 'Maturity')},
-  ]);
-  body += TB.ui.formField({
-    label: TB.ops._t('处理说明', 'Note'),
-    name: 'maturity_note',
-    type: 'textarea',
-    placeholder: TB.ops._t('请输入处理说明', 'Enter note'),
-  });
-  var footer = '<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button>' +
-    '<button class="btn btn-primary" onclick="TB.ops._toastSubmitted()">'+TB.t('submit')+'</button>';
-  TB.ui.modal({ title: TB.ops._t('触发Maturity', 'Trigger Maturity'), body: body, footer: footer });
+    {label: TB.t('lbl.seriesId'), value: s.id},
+    {label: TB.t('lbl.productName'), value: TB.utils.esc(s.name)},
+    {label: TB.t('lbl.maturityDate'), value: s.maturityDate},
+    {label: TB.t('status'), value: TB.ui.statusBadge(s.status)},
+    {label: TB.ops._t('持仓成员数', 'Holding Members'), value: String(holds.length)},
+    {label: TB.ops._t('已结算笔数', 'Settled Records'), value: settled + ' / ' + holds.length},
+    {label: TB.ops._t('兑付进度', 'Settlement Progress'), value: progress + '%'}
+  ]) + TB.ui.progress(progress)
+    + '<div class="form-hint mt-2">' + TB.ops._t('Checkout 与 Maturity 均由系统在 cut-off 自动触发，运营端仅做监控查看。', 'Checkout and maturity are triggered automatically by the system at cut-off; operations only monitors them.') + '</div>';
+  TB.ui.modal({ title: TB.ops._t('产品监控详情', 'Product Monitoring Detail') + ' · ' + s.id, body: body, size: 'lg' });
 };
 TB.ops.exportCheckout = function() { TB.ops._toastExport(); };
 
@@ -1133,8 +1112,8 @@ TB.router.register('ops', {
     return html;
   },
 
-  /* ---- 10. /checkout-maturity — Checkout/Maturity Processing ---- */
-  '/checkout-maturity': function(params) {
+  /* ---- 10. /product-monitor — Product Monitoring (view only) ---- */
+  '/product-monitor': function(params) {
     var html = TB.utils.contentHeader(TB.t('nav.checkoutMaturity'), '<button class="btn btn-sm" onclick="TB.ops.exportCheckout()">'+TB.t('export')+'</button>');
 
     html += TB.ui.filterBar({
@@ -1142,12 +1121,7 @@ TB.router.register('ops', {
         {name: 'series', label: TB.t('lbl.seriesId'), type: 'select', options: [
           {value: '', label: TB.t('all')},
         ].concat(TB.data.series.map(function(s) { return {value: s.id, label: s.id}; }))},
-        {name: 'type', label: TB.ops._t('处理类型', 'Process Type'), type: 'select', options: [
-          {value: '', label: TB.t('all')},
-          {value: 'checkout', label: TB.t('lbl.checkout')},
-          {value: 'maturity', label: TB.t('st.maturity')},
-        ]},
-        {name: 'status', label: TB.ops._t('处理状态', 'Status'), type: 'select', options: [
+        {name: 'status', label: TB.t('status'), type: 'select', options: [
           {value: '', label: TB.t('all')},
           {value: 'pending', label: TB.t('st.pending')},
           {value: 'processing', label: TB.ops._t('处理中', 'Processing')},
@@ -1162,17 +1136,18 @@ TB.router.register('ops', {
     }).map(function(s, i) {
       var isMaturity = s.status === 'maturity' || s.status === 'burned';
       var isCompleted = s.status === 'burned';
-      var progress = isCompleted ? 100 : (isMaturity ? 0 : 0);
-      var memberCount = TB.data.holdings.filter(function(h) { return h.series === s.id; }).length;
+      var holds = TB.data.holdings.filter(function(h) { return h.series === s.id; });
+      var done = ['checkoutCompleted', 'maturityPaid', 'burned'];
+      var settled = holds.filter(function(h) { return done.indexOf(h.status) >= 0; }).length;
       return {
-        id: 'CM-' + ('00' + (i + 1)).slice(-3),
+        id: 'PM-' + ('00' + (i + 1)).slice(-3),
         seriesId: s.id,
         name: s.name,
         maturityDate: s.maturityDate,
-        type: isMaturity ? TB.t('st.maturity') : TB.t('lbl.checkout'),
         status: isCompleted ? 'completed' : (isMaturity ? 'pending' : 'processing'),
-        progress: progress,
-        members: memberCount,
+        progress: holds.length ? Math.round(settled / holds.length * 100) : (isCompleted ? 100 : 0),
+        settled: settled + ' / ' + holds.length,
+        members: holds.length,
       };
     });
 
@@ -1181,21 +1156,19 @@ TB.router.register('ops', {
         {key: 'seriesId', label: TB.t('lbl.seriesId')},
         {key: 'name', label: TB.t('lbl.productName')},
         {key: 'maturityDate', label: TB.t('lbl.maturityDate')},
-        {key: 'type', label: TB.ops._t('处理类型', 'Type')},
-        {key: 'status', label: TB.ops._t('处理状态', 'Status'), render: function(r) {
+        {key: 'status', label: TB.t('status'), render: function(r) {
           return TB.ui.statusBadge(r.status);
         }},
-        {key: 'progress', label: TB.ops._t('兑付进度', 'Progress'), render: function(r) {
+        {key: 'progress', label: TB.ops._t('兑付进度', 'Settlement Progress'), render: function(r) {
           return r.progress + '% ' + TB.ui.progress(r.progress);
         }},
-        {key: 'members', label: TB.ops._t('成员数', 'Members'), align: 'right'},
+        {key: 'settled', label: TB.ops._t('已结算笔数', 'Settled Records'), align: 'right'},
+        {key: 'members', label: TB.ops._t('持仓成员数', 'Holding Members'), align: 'right'},
+        {key: 'go', label: TB.t('actions'), render: function(r) {
+          return '<span class="tag-link" onclick="TB.ops.viewMonitorDetail(\'' + r.seriesId + '\')">' + TB.t('viewDetail') + '</span>';
+        }},
       ],
       data: cmData,
-      actions: [
-        {label: TB.t('viewDetail'), onClick: 'TB.ops.viewCheckoutDetail', type: 'text'},
-        {label: TB.t('lbl.checkout'), onClick: 'TB.ops.openTriggerCheckout'},
-        {label: TB.t('st.maturity'), onClick: 'TB.ops.openTriggerMaturity'},
-      ],
       pagination: {total: cmData.length, pageSize: 10, current: 1},
     });
 

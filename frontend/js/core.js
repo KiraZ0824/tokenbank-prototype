@@ -62,7 +62,7 @@ TB.i18n = {
   'nav.opsDashboard':{en:'Dashboard',zh:'运营看板'},'nav.members':{en:'Members',zh:'成员管理'},
   'nav.seriesReview':{en:'Series Review',zh:'Series审核'},'nav.capacity':{en:'Capacity',zh:'容量/库存'},
   'nav.reconciliation':{en:'Reconciliation',zh:'对账管理'},'nav.quoteMonitor':{en:'Quote Monitor',zh:'报价监控'},
-  'nav.checkoutMaturity':{en:'Checkout/Maturity',zh:'Checkout/Maturity'},
+  'nav.checkoutMaturity':{en:'Product Monitoring',zh:'产品监控'},
 'nav.platformAccounts':{en:'Accounts',zh:'账号管理'},
   'nav.roles':{en:'Roles',zh:'角色权限'},'nav.auditConfig':{en:'Audit Config',zh:'审核流程配置'},
   'nav.systemParams':{en:'System Params',zh:'系统参数'},'nav.auditLog':{en:'Audit Log',zh:'审计日志'},
@@ -560,7 +560,7 @@ TB.nav = {
     { group:'grp.opsMgmt', items:[
       { label:'nav.capacity', icon:'positions', route:'#/capacity' },
       { label:'nav.quoteMonitor', icon:'quotes', route:'#/quote-monitor' },
-      { label:'nav.checkoutMaturity', icon:'rotate', route:'#/checkout-maturity' },
+      { label:'nav.checkoutMaturity', icon:'rotate', route:'#/product-monitor' },
     ]},
     { group:'grp.sysMgmt', items:[
       { label:'nav.platformAccounts', icon:'account', route:'#/accounts' },
