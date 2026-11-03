@@ -289,10 +289,7 @@ TB.pages.member.openOrderConfirm = function(kind){
     fundHtml = '<div class="book-fund-note">'
       + '<div class="book-fund-title">💰 ' + t('起息日备付提醒','Funding Reminder for the Value Date') + '</div>'
       + '<div>' + remind + '</div>'
-      + '<div class="book-fund-risk"><strong>' + t('未成交风险','Settlement Risk') + t('：',': ') + '</strong>'
-      + t('起息日 cut-off 余额不足时，预定转入「待补款」并进入宽限期（参数可调）；宽限期内补足即自动成交，超时未补足系统取消预定并没收全部定金（R22：余额不足等同逾期取消）。若 Series 在生效日前下架，系统取消预定并全额退还定金；生效日遇非营业日自动顺延至下一营业日并另行通知。预定时锁定的是收益差 gap 而非价格，故无价格风险。',
-          'If the balance is short at the value-date cut-off, the booking moves to "Pending Top-up" and enters a grace period (configurable); topping up within it settles automatically, otherwise the system cancels the booking and forfeits the full deposit (R22: insufficient balance equals late cancellation). If the Series is withdrawn before the value date, the booking is cancelled and the deposit refunded in full; if the value date falls on a non-business day it rolls to the next business day with notice. The booking locks the yield gap rather than the price, so there is no price risk.')
-      + '</div></div>';
+      + '</div>';
   }
   var body = TB.ui.descList(rows) + fundHtml
     + '<div class="mt-4" style="font-size:12px;color:var(--text-secondary);line-height:1.8">'
