@@ -528,7 +528,7 @@ TB.router.register('member', {
       + '<div class="bond-hero-meta">'+TB.utils.esc(s.id)+' · '+t('发行方','Issuer')+'：'+TB.utils.esc(s.issuer)+' · '+t('托管方','Custodian')+'：'+TB.utils.esc(s.custodian)+'</div>'
       + '</div><div class="bond-hero-quote">'
       + '<div class="bond-hero-yield">'+TB.utils.yield(s.sellerYield)+'</div>'
-      + '<div class="bond-hero-yield-sub">'+t('卖方参考收益率','Seller Reference Yield')+'</div>'
+      + '<div class="bond-hero-yield-sub">'+t('卖方收益率','Seller Yield')+'</div>'
       + '<div class="bond-hero-price">'+t('参考价格','Mark Price')+' '+TB.utils.price(s.markPrice)+' · '+s.bpSpread+' bp</div>'
       + '</div></div></div>';
     if(!purchasable){
@@ -544,7 +544,9 @@ TB.router.register('member', {
           {label:t('可售额度','Available'), value:TB.utils.money(s.faceAvailable)},
           {label:TB.t('lbl.maturityDate')+TB.utils.note(t('到期日为美东业务日，以美债现货收盘（17:00 ET）为基准换算成本地时间展示。','Maturity is an ET business date, converted to local time from the US Treasury close (17:00 ET).')), value:s.maturityDate},
           {label:t('窗口天数','Window Days')+TB.utils.note(t('该产品允许的最长持有天数；买入时选择的赎回日不得超出。','Maximum holding days for this product; the redemption date chosen at purchase cannot exceed it.')), value:s.windowDays + ' ' + t('天','days')},
-          {label:t('参考市场收益率','Reference Yield')+TB.utils.note(t('参考收益率用于预期收益与定金计算，不代表保证收益。','Reference yield drives the expected-return and deposit calculations; not a guaranteed return.')), value:TB.utils.yield(s.refYield)},
+          {label:t('卖方收益率','Seller Yield')+TB.utils.note(t('Bison 报价的卖方收益率，与页首大字展示一致；减去参考市场收益率即为收益差。','The seller yield quoted by Bison, identical to the headline figure above; minus the market reference yield it gives the yield gap.')), value:TB.utils.yield(s.sellerYield)},
+          {label:t('参考市场收益率','Market Reference Yield')+TB.utils.note(t('对应期限美债的市场参考收益率，用于预期收益与定金计算，不代表保证收益。','Market reference yield of the matching Treasury tenor; drives the expected-return and deposit calculations and is not a guaranteed return.')), value:TB.utils.yield(s.refYield)},
+          {label:t('收益差','Yield Gap')+TB.utils.note(t('收益差 = 卖方收益率 − 参考市场收益率；预定时锁定该差值而非价格，故无价格风险。','Yield gap = seller yield − market reference yield; bookings lock this gap rather than the price, so there is no price risk.')), value:s.bpSpread+' bp'},
           {label:t('估值日','Valuation Date')+TB.utils.note(t('估值日为美东业务日，收盘价与估值均以当日美债收盘（17:00 ET）为基准。','Valuation date is an ET business date; the close price and valuation are struck at the US Treasury close (17:00 ET).')), value:s.valuationDate},
           {label:t('交易手续费','Transaction Fee')+TB.utils.note(t('每笔买入或预定收取 USB 20，已计入现金应付与预估定金。','USB 20 per buy or booking; included in cash payable and the estimated deposit.')), value:TB.utils.money(20) + ' / ' + t('笔','trade')},
           {label:t('预定定金规则','Booking Deposit Rule')+TB.utils.note(t('收益差 = 卖方收益率 − 参考收益率 = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp；起息日截止（Value Date cut-off）余额不足先给最长 1 小时宽限（参数可调），仍不足则取消订单并没收全部定金。','Yield gap = seller yield − reference yield = '+Math.round((s.sellerYield - s.refYield) * 10000)+'bp; if the balance is short at the value-date cut-off a 1-hour grace (configurable) applies, after which the order is cancelled and the full deposit is forfeited.')), value:t('USB 20 + 面值 × 收益差 × 窗口天数 / 365','USB 20 + face × yield gap × window days / 365')},
