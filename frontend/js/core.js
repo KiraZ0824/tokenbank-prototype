@@ -309,6 +309,12 @@ TB.data = {
     {id:'ACC-008',name:'Ops Staff',email:'ops@tokenbank.io',role:'Operations',org:'TokenBank',status:'active',created:'2026-03-01',lastLogin:'2026-10-31 17:00:00'},
     {id:'ACC-009',name:'Robert Taylor',email:'rtaylor@bisonbank.com',role:'Compliance',org:'Bison Bank',status:'active',created:'2026-07-01',lastLogin:'2026-11-01 09:00:00'},
     {id:'ACC-010',name:'Linda Chen',email:'lchen@bisonbank.com',role:'Treasury',org:'Bison Bank',status:'active',created:'2026-08-01',lastLogin:'2026-11-02 08:45:00'},
+    {id:'ACC-011',name:'Anna Wong',email:'anna@beta-cap.com',role:'Admin',org:'Beta Capital Partners',status:'active',created:'2026-08-22',lastLogin:'2026-11-02 09:00:00'},
+    {id:'ACC-012',name:'Leo Zhang',email:'leo@beta-cap.com',role:'Trader',org:'Beta Capital Partners',status:'active',created:'2026-09-05',lastLogin:'2026-11-01 10:30:00'},
+    {id:'ACC-013',name:'Nina Keller',email:'nina@gamma-wealth.ch',role:'Admin',org:'Gamma Wealth Advisory',status:'active',created:'2026-09-10',lastLogin:'2026-10-30 15:00:00'},
+    {id:'ACC-014',name:'Omar Haddad',email:'omar@delta-am.co.uk',role:'Admin',org:'Delta Asset Management',status:'active',created:'2026-10-28',lastLogin:'-'},
+    {id:'ACC-015',name:'Ken Sato',email:'ken@epsilon-inv.jp',role:'Admin',org:'Epsilon Investments',status:'suspended',created:'2026-07-12',lastLogin:'2026-10-20 08:00:00'},
+    {id:'ACC-016',name:'Claire Dubois',email:'claire@zeta-fg.lu',role:'Admin',org:'Zeta Financial Group',status:'active',created:'2026-06-15',lastLogin:'2026-11-02 07:45:00'},
   ],
   reconciliations: [
     {id:'REC-20261102',date:'2026-11-02',series:'UST-2026-001',status:'matched',diffCount:0,time:'2026-11-02 06:30:00'},

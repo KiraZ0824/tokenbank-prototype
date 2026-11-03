@@ -66,12 +66,38 @@ TB.ops.exportMembers = function() { TB.ops._toastExport(); };
 TB.ops.toggleMemberStatus = function(id) {
   var m = TB.data.members.find(function(x) { return x.id === id; });
   if (!m) return;
-  var isActive = m.status === 'active';
-  var title = isActive ? TB.t('disable') : TB.t('enable');
-  var msg = isActive
-    ? TB.ops._t('确认停用成员「', 'Confirm to disable member "') + m.name + TB.ops._t('」？', '"?')
-    : TB.ops._t('确认启用成员「', 'Confirm to enable member "') + m.name + TB.ops._t('」？', '"?');
-  TB.ui.confirmModal(title, msg, 'TB.ops._confirmSuccess');
+  var disabling = m.status !== 'deactivated';
+  var accCount = TB.data.accounts.filter(function(a) { return a.org === m.name; }).length;
+  TB.ui.confirmModal(
+    disabling ? TB.ops._t('停用机构', 'Disable Institution') : TB.ops._t('启用机构', 'Enable Institution'),
+    disabling
+      ? TB.ops._t('停用后该机构全部账号将无法登录使用（共 ', 'Once disabled, all accounts of this institution can no longer sign in (') + accCount + TB.ops._t(' 个）。确认停用「', ' in total). Confirm disabling "') + m.name + TB.ops._t('」？', '"?')
+      : TB.ops._t('启用后该机构账号恢复可用。确认启用「', 'Once enabled, the institution accounts become usable again. Confirm enabling "') + m.name + TB.ops._t('」？', '"?'),
+    'TB.ops._toggleMemberDone(\'' + id + '\')',
+    disabling ? 'danger' : '');
+};
+/* 停用机构时级联停用其全部账号；启用时恢复停用前状态 */
+TB.ops._toggleMemberDone = function(id) {
+  var m = TB.data.members.find(function(x) { return x.id === id; });
+  if (!m) return;
+  var disabling = m.status !== 'deactivated';
+  m.status = disabling ? 'deactivated' : 'active';
+  m.statusChangedAt = TB.utils.nowET();
+  m.statusChangedBy = TB.state.user ? TB.state.user.name : '';
+  TB.data.accounts.forEach(function(a) {
+    if (a.org !== m.name) return;
+    if (disabling) { a.orgPrevStatus = a.status; a.status = 'deactivated'; }
+    else { a.status = a.orgPrevStatus || 'active'; delete a.orgPrevStatus; }
+  });
+  TB.utils.toast(
+    disabling ? TB.ops._t('机构已停用，其全部账号已不可用', 'Institution disabled; all its accounts are unusable')
+              : TB.ops._t('机构已启用，其账号恢复可用', 'Institution enabled; its accounts are usable again'),
+    disabling ? 'error' : 'success');
+  TB.router.render();
+};
+TB.ops._orgDisabled = function(orgName) {
+  var m = TB.data.members.find(function(x) { return x.name === orgName; });
+  return !!m && m.status === 'deactivated';
 };
 TB.ops.exportMemberReport = function(id) { TB.ops._toastExport(); };
 
@@ -405,6 +431,10 @@ TB.ops.openEditAccount = function(id) {
 TB.ops.toggleAccountStatus = function(id) {
   var a = TB.data.accounts.find(function(x) { return x.id === id; });
   if (!a) return;
+  if (TB.ops._orgDisabled(a.org)) {
+    TB.utils.toast(TB.ops._t('该机构已停用，账号操作不可用', 'The institution is disabled; account operations are unavailable'), 'error');
+    return;
+  }
   if (TB.state.user && TB.state.user.email === a.email) {
     TB.utils.toast(TB.ops._t('不能停用当前登录账号', 'You cannot disable the account you are signed in with'), 'error');
     return;
@@ -427,6 +457,10 @@ TB.ops._toggleAccountDone = function(id) {
 TB.ops.resetAccountPwd = function(id) {
   var a = TB.data.accounts.find(function(x) { return x.id === id; });
   if (!a) return;
+  if (TB.ops._orgDisabled(a.org)) {
+    TB.utils.toast(TB.ops._t('该机构已停用，账号操作不可用', 'The institution is disabled; account operations are unavailable'), 'error');
+    return;
+  }
   if (a.status === 'deactivated') {
     TB.utils.toast(TB.ops._t('已停用账号需先启用才能重置密码', 'Enable the account before resetting its password'), 'error');
     return;
@@ -755,11 +789,13 @@ TB.router.register('ops', {
           return TB.utils.money(r.emtBalance);
         }},
         {key: 'createdAt', label: TB.ops._t('入驻时间', 'Onboarded')},
+        {key: 'go', label: TB.t('actions'), render: function(r) {
+          var off = r.status === 'deactivated';
+          return '<span class="tag-link" onclick="TB.ops.navMember(\'' + r.id + '\')">' + TB.t('viewDetail') + '</span> '
+            + '<span class="tag-link" style="color:' + (off ? 'var(--success)' : 'var(--error)') + '" onclick="TB.ops.toggleMemberStatus(\'' + r.id + '\')">' + (off ? TB.t('enable') : TB.t('disable')) + '</span>';
+        }},
       ],
       data: TB.data.members,
-      actions: [
-        {label: TB.t('viewDetail'), onClick: 'TB.ops.navMember', type: 'text'},
-      ],
       pagination: {total: TB.data.members.length, pageSize: 10, current: 1},
     });
 
@@ -855,6 +891,7 @@ TB.router.register('ops', {
                 {key: 'email', label: TB.t('lbl.email')},
                 {key: 'role', label: TB.t('lbl.role')},
                 {key: 'status', label: TB.t('status'), render: function(r) { return TB.ui.statusBadge(r.status); }},
+                {key: 'created', label: TB.t('lbl.created')},
                 {key: 'lastLogin', label: TB.t('lbl.lastLogin')},
                 {key: 'go', label: TB.t('actions'), render: function(r) {
                   var off = r.status !== 'active';
