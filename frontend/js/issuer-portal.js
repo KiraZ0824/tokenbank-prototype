@@ -716,7 +716,7 @@ TB.pages.issuer.renderIssuanceDrawer = function(){
   var body = TB.ui.stepIndicator(steps.map(function(s, i){
     return { label:t(s.labelZh, s.labelEn), status: i < st.step ? 'done' : (i === st.step ? 'pending' : 'waiting') };
   }));
-  body += '<div class="text-muted text-sm mt-2 mb-4">'+(st.step + 1)+' / '+steps.length+' · '+step.labelZh+' · '+st.id+'</div>';
+  body += '<div class="text-muted text-sm mt-2 mb-4">'+(st.step + 1)+' / '+steps.length+' · '+t(step.labelZh, step.labelEn)+' · '+st.id+'</div>';
   body += TB.pages.issuer._issuanceStepBody(st, step);
   var last = st.step === steps.length - 1;
   var footer = '<button class="btn" onclick="TB.pages.issuer.saveDraftIssuance()">'+t('暂存','Save Draft')+'</button>'
