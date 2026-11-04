@@ -65,7 +65,7 @@ TB.pages.member._marketCards = function(){
       + '</div>'
       + '<div class="market-card-body">'
       + '<div class="market-card-row"><span>'+TB.pages.member.t('到期','Maturity')+'</span><strong>'+TB.utils.esc(TB.utils.dt(s.maturityDate))+'</strong></div>'
-      + '<div class="market-card-row"><span>'+TB.pages.member.t('参考价格','Reference Price')+'</span><strong>'+TB.utils.price(s.markPrice)+'</strong></div>'
+      + '<div class="market-card-row"><span>'+TB.pages.member.t('当前价格','Current Price')+'</span><strong>'+TB.utils.price(s.markPrice)+'</strong></div>'
       + '</div>'
       + '<div class="market-card-foot">'
       + '<div class="flex gap-2">'
@@ -404,10 +404,10 @@ TB.pages.member.calcTrade = function(){
     var valuation = face * s.markPrice;
     var buyYield = (face > 0 && hold > 0) ? ret / face * (365 / hold) * 100 : 0;
     rows = calcRow('持有天数','Holding Days',['持有天数 = 赎回日期 − 起息日，可短于产品窗口。','Holding days = redemption date minus value date; may be shorter than the product window.'], hold+' '+t('天','days'))
-      + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 参考价格，交割后作为持仓估值基准。','Expected valuation = face × mark price; used as the position value after settlement.'], TB.utils.money(valuation))
+      + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 当前价格，交割后作为持仓估值基准。','Expected valuation = face × current price; used as the position value after settlement.'], TB.utils.money(valuation))
       + calcRow('预期收益','Expected Return',['预期收益 = 面值 × 参考收益率 × 持有天数 / 365，仅供参考不构成保证收益。','Expected return = face × reference yield × holding days / 365; indicative only.'], TB.utils.money(ret))
       + calcRow('预期收益率','Expected Yield',['预期收益率 = 预期收益 ÷ 面值 × 365 ÷ 持有天数（未扣手续费），仅供参考不构成保证收益。','Expected yield = expected return ÷ face × 365 ÷ holding days, before fees; indicative only.'], TB.utils.yieldFmt(buyYield))
-      + calcRow('现金应付','Cash Payable',['现金应付 = 面值 × 参考价格 + USB 20 交易费。','Cash payable = face × mark price + USB 20 fee.'], TB.utils.money(cash))
+      + calcRow('现金应付','Cash Payable',['现金应付 = 面值 × 当前价格 + USB 20 交易费。','Cash payable = face × current price + USB 20 fee.'], TB.utils.money(cash))
       + calcRow('扣费后年化收益率','Net Annualized Yield',['扣费后年化收益率 =（预期收益 − 交易手续费）÷ 面值 × 365 ÷ 持有天数。','Net annualised yield = (expected return − transaction fee) ÷ face × 365 ÷ holding days.'], TB.utils.yieldFmt(net));
   } else {
     var cin = TB.utils.getInputVal('trade_checkin');
@@ -421,7 +421,7 @@ TB.pages.member.calcTrade = function(){
     var bPayable = Math.max(0, face - dep);
     var bShort = Math.max(0, bPayable - Math.max(0, TB.pages.member.walletEmt() - dep));
     rows = calcRow('窗口天数','Window Days',['窗口天数 = 赎回日期 − 起息日，须为交易日区间。','Window days = redemption date minus value date, over trading days.'], days+' '+t('天','days'))
-      + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 参考价格，交割后作为持仓估值基准。','Expected valuation = face × mark price; used as the position value after settlement.'], TB.utils.money(bVal))
+      + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 当前价格，交割后作为持仓估值基准。','Expected valuation = face × current price; used as the position value after settlement.'], TB.utils.money(bVal))
       + calcRow('预期收益','Expected Return',['预期收益 = 面值 × 参考收益率 × 窗口天数 / 365，仅供参考不构成保证收益。','Expected return = face × reference yield × window days / 365; indicative only.'], TB.utils.money(bRet))
       + calcRow('预估定金','Estimated Deposit',['定金 = USB 20 + 面值 × 收益差 × 窗口天数 / 365，提交时从可用 EMT 扣收。','Deposit = USB 20 + face × yield gap × window days / 365, charged from available EMT on submission.'], TB.utils.money(dep))
       + calcRow('起息日应付','Payable on Value Date',['起息日 cut-off 系统校验可用余额后自动扣款成交，金额 = 预定面值 − 已付定金。','At the value-date cut-off the system verifies the available balance and settles automatically; the debit equals booking face value minus the deposit paid.'], TB.utils.money(bPayable))
@@ -483,7 +483,7 @@ TB.pages.member._tradePanel = function(s, purchasable){
       '<div class="trade-field"><div class="trade-field-label"><span>'+t('起息日','Value Date')+TB.utils.note(t('默认为今天且不可修改，交割按当日收盘处理。','Defaults to today and is read-only; settlement follows today’s close.'))+'</span></div><input type="text" class="form-input" id="trade_buydate" value="'+today+'" disabled></div>',
       '<div class="trade-field"><div class="trade-field-label"><span>'+t('赎回日期','Redemption Date')+TB.utils.note(t('可短于产品窗口持有（如只买 3 天）；仅交易日可选，须晚于起息日且不超过窗口天数。','May be shorter than the product window (e.g. 3 days); trading days only, after the value date and within the window.'))+'</span></div>'+TB.ui.datePicker({id:'trade_checkout', value:defOut})+'</div>'
     );
-    html += field(t('成交价格','Execution Price'), t('引用 Bison 最新报价的参考价格；报价过期需等待发行方刷新。','Uses the latest Bison quote mark price; expired quotes must be refreshed by the issuer.'), TB.utils.price(s.markPrice));
+    html += field(t('成交价格','Execution Price'), t('引用 Bison 最新报价的当前价格；报价过期需等待发行方刷新。','Uses the latest Bison quote price; expired quotes must be refreshed by the issuer.'), TB.utils.price(s.markPrice));
   } else {
     html += fieldRow(
       '<div class="trade-field"><div class="trade-field-label"><span>'+t('起息日','Value Date')+TB.utils.note(t('预定生效日，即持仓的起息日，默认为今天的下一个交易日；仅可选择今天之后的交易日，遇非营业日自动顺延。','Booking effective date — the value date of the position, defaulting to the next trading day after today; only future trading days are selectable and non-business days roll forward.'))+'</span></div>'+TB.ui.datePicker({id:'trade_checkin', value:TB.pages.member._bookValueDate()})+'</div>',
@@ -536,7 +536,7 @@ TB.router.register('member', {
         {key:'id', label:TB.t('lbl.seriesId'), render:function(r){ return '<span class="row-plain" onclick="TB.pages.member.viewMarketDetail(\''+r.id+'\')">'+r.id+'</span>'; }},
         {key:'name', label:TB.t('lbl.productName'), render:function(r){ return '<span class="row-plain" onclick="TB.pages.member.viewMarketDetail(\''+r.id+'\')">'+TB.utils.esc(r.name)+'</span>'; }},
         {key:'sellerYield', label:t('卖方收益率','Seller Yield'), render:function(r){ return TB.utils.yield(r.sellerYield); }},
-        {key:'markPrice', label:t('参考价格','Reference Price'), render:function(r){ return TB.utils.price(r.markPrice); }},
+        {key:'markPrice', label:t('当前价格','Current Price'), render:function(r){ return TB.utils.price(r.markPrice); }},
         {key:'maturityDate', label:TB.t('lbl.maturityDate')},
         {key:'windowDays', label:t('窗口天数','Window Days'), render:function(r){ return r.windowDays+' '+t('天','days'); }},
         {key:'faceAvailable', label:t('可售额度','Available'), render:function(r){ return TB.utils.money(r.faceAvailable); }},
@@ -563,7 +563,7 @@ TB.router.register('member', {
       + '</div><div class="bond-hero-quote">'
       + '<div class="bond-hero-yield">'+TB.utils.yield(s.sellerYield)+'</div>'
       + '<div class="bond-hero-yield-sub">'+t('卖方收益率','Seller Yield')+'</div>'
-      + '<div class="bond-hero-price">'+t('参考价格','Mark Price')+' '+TB.utils.price(s.markPrice)+' · '+s.bpSpread+' bp</div>'
+      + '<div class="bond-hero-price">'+t('当前价格','Current Price')+' '+TB.utils.price(s.markPrice)+' · '+s.bpSpread+' bp</div>'
       + '</div></div></div>';
     if(!purchasable){
       html += '<div class="bond-quote-expired">⚠️ '+t('该产品当前不可购买：报价已过期或已售罄，请等待发行方刷新报价。','This product is not purchasable now: the quote expired or the series sold out. Please wait for a refreshed quote.')+'</div>';
@@ -574,6 +574,7 @@ TB.router.register('member', {
           {label:'CUSIP', value:s.cusip},
           {label:'ISIN', value:s.isin},
           {label:t('当前价格','Current Price')+TB.utils.note(t('该周期对应美债产品（CUSIP '+s.cusip+'）的当前参考价，估值日 '+s.valuationDate+'，来源 '+s.priceSource+'。','Current reference price of the underlying Treasury (CUSIP '+s.cusip+') for this window; valuation date '+s.valuationDate+', source '+s.priceSource+'.')), value:TB.utils.price(s.markPrice)},
+          {label:t('参考价格','Reference Price')+TB.utils.note(t('参考价格来源于第三方市场价格，独立于 Bison 报价，用于交叉校验报价合理性。','The reference price comes from third-party market prices, independent of the Bison quote, and is used to cross-check quote reasonableness.')), value:TB.utils.price(s.marketRefPrice)},
           {label:t('发行总面值','Total Face Value'), value:TB.utils.money(s.faceTotal)},
           {label:t('可售额度','Available'), value:TB.utils.money(s.faceAvailable)},
           {label:TB.t('lbl.maturityDate')+TB.utils.note(t('到期日为美东业务日，以美债现货收盘（17:00 ET）为基准换算成本地时间展示。','Maturity is an ET business date, converted to local time from the US Treasury close (17:00 ET).')), value:s.maturityDate},
