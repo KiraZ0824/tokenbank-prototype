@@ -38,15 +38,26 @@ TB.pages.member._marketRows = function(){
   });
 };
 
+TB.pages.member._marketView = 'card';
+TB.pages.member.setMarketView = function(v){ TB.pages.member._marketView = v; TB.router.render(); };
+/* 状态标识：开放购买 / 售罄 / 停止购买，比原始 Series 状态更贴近可交易语义 */
+TB.pages.member._marketStatus = function(s){
+  var t = TB.pages.member.t;
+  if(s.status === 'open') return s.faceAvailable > 0 ? {label:t('开放购买','Open for Purchase'), tone:'success'} : {label:t('售罄','Sold Out'), tone:'default'};
+  if(s.status === 'closed') return {label:t('停止购买','Purchase Stopped'), tone:'warning'};
+  return {label:TB.utils.enumLabel(s.status), tone:'info'};
+};
+TB.pages.member._marketPurchasable = function(s){ return s.status === 'open' && s.faceAvailable > 0; };
 TB.pages.member._marketCards = function(){
   return TB.data.series.filter(function(s){ return s.status === 'open' || s.status === 'closed'; }).map(function(s){
+    var stt = TB.pages.member._marketStatus(s);
     return '<div class="market-card">'
       + '<div class="market-card-top">'
       + '<div>'
       + '<div class="market-card-name">'+TB.utils.esc(s.name)+'</div>'
       + '<div class="market-card-id">'+TB.utils.esc(s.id)+' · '+TB.utils.esc(s.quoteProvider)+'</div>'
       + '</div>'
-      + TB.ui.statusBadge(s.status)
+      + TB.ui.badge(stt.label, stt.tone)
       + '</div>'
       + '<div class="market-card-quote">'
       + '<div class="market-card-quote-rate">'+TB.utils.yield(s.sellerYield)+'</div>'
@@ -59,7 +70,7 @@ TB.pages.member._marketCards = function(){
       + '<div class="market-card-foot">'
       + '<div class="flex gap-2">'
       + '<button class="btn btn-sm" onclick="TB.pages.member.viewMarketDetail(\''+s.id+'\')">'+TB.t('viewDetail')+'</button>'
-      + '<button class="btn btn-sm btn-primary" onclick="TB.pages.member.bookAheadFromRow(\''+s.id+'\')">'+TB.t('bookAhead')+'</button>'
+      + '<button class="btn btn-sm btn-primary"'+(TB.pages.member._marketPurchasable(s) ? '' : ' disabled')+' onclick="TB.pages.member.bookAheadFromRow(\''+s.id+'\')">'+TB.t('bookAhead')+'</button>'
       + '</div>'
       + '</div>'
       + '</div>';
@@ -508,13 +519,36 @@ TB.router.register('member', {
     return html;
   },
   '/market': function(){
-    var html = TB.utils.contentHeader(TB.pages.member.t('产品市场','Product Market'));
+    var t = TB.pages.member.t;
+    var view = TB.pages.member._marketView;
+    var toggle = '<div class="view-toggle">'
+      + '<button class="'+(view === 'card' ? 'active' : '')+'" onclick="TB.pages.member.setMarketView(\'card\')">▦ '+t('卡片','Cards')+'</button>'
+      + '<button class="'+(view === 'list' ? 'active' : '')+'" onclick="TB.pages.member.setMarketView(\'list\')">☰ '+t('列表','List')+'</button>'
+      + '</div>';
+    var html = TB.utils.contentHeader(t('产品市场','Product Market'), toggle);
     html += TB.ui.filterBar({ fields:[
       {name:'status', label:TB.t('status'), type:'select', options:[{value:'',label:TB.t('all')},{value:'open',label:TB.utils.enumLabel('open')},{value:'closed',label:TB.utils.enumLabel('soldout')}]},
       {name:'yield', label:TB.t('lbl.yield'), type:'select', options:[{value:'',label:TB.t('all')},{value:'high',label:TB.utils.enumLabel('high')},{value:'mid',label:TB.utils.enumLabel('mid')}]},
       {name:'face', label:TB.t('lbl.faceValue'), type:'select', options:[{value:'',label:TB.t('all')},{value:'500k',label:'500K+'},{value:'1m',label:'1M+'}]},
     ], exportBtn:true });
-    html += '<div class="market-grid">'+TB.pages.member._marketCards()+'</div>';
+    if(view === 'list'){
+      html += TB.ui.table({ columns:[
+        {key:'id', label:TB.t('lbl.seriesId'), render:function(r){ return '<span class="row-plain" onclick="TB.pages.member.viewMarketDetail(\''+r.id+'\')">'+r.id+'</span>'; }},
+        {key:'name', label:TB.t('lbl.productName'), render:function(r){ return '<span class="row-plain" onclick="TB.pages.member.viewMarketDetail(\''+r.id+'\')">'+TB.utils.esc(r.name)+'</span>'; }},
+        {key:'sellerYield', label:t('卖方收益率','Seller Yield'), render:function(r){ return TB.utils.yield(r.sellerYield); }},
+        {key:'markPrice', label:t('参考价格','Reference Price'), render:function(r){ return TB.utils.price(r.markPrice); }},
+        {key:'maturityDate', label:TB.t('lbl.maturityDate')},
+        {key:'windowDays', label:t('窗口天数','Window Days'), render:function(r){ return r.windowDays+' '+t('天','days'); }},
+        {key:'faceAvailable', label:t('可售额度','Available'), render:function(r){ return TB.utils.money(r.faceAvailable); }},
+        {key:'st', label:TB.t('status'), render:function(r){ var m = TB.pages.member._marketStatus(r); return TB.ui.badge(m.label, m.tone); }},
+        {key:'go', label:TB.t('actions'), render:function(r){
+          return '<span class="tag-link" onclick="TB.pages.member.viewMarketDetail(\''+r.id+'\')">'+TB.t('viewDetail')+'</span>'
+            + (TB.pages.member._marketPurchasable(r) ? ' <span class="tag-link" onclick="TB.pages.member.bookAheadFromRow(\''+r.id+'\')">'+TB.t('bookAhead')+'</span>' : '');
+        }}
+      ], data: TB.data.series.filter(function(x){ return x.status === 'open' || x.status === 'closed'; }) });
+    } else {
+      html += '<div class="market-grid">'+TB.pages.member._marketCards()+'</div>';
+    }
     return html;
   },
   '/market/:productId': function(p){
@@ -523,7 +557,7 @@ TB.router.register('member', {
     TB.pages.member._currentSeries = s;
     var purchasable = s.status === 'open';
     var html = '<div class="bond-hero"><div class="bond-hero-top"><div>'
-      + TB.ui.statusBadge(s.status)
+      + (function(m){ return TB.ui.badge(m.label, m.tone); })(TB.pages.member._marketStatus(s))
       + '<div class="bond-hero-name">'+TB.utils.esc(s.name)+'</div>'
       + '<div class="bond-hero-meta">'+TB.utils.esc(s.id)+' · '+t('发行方','Issuer')+'：'+TB.utils.esc(s.issuer)+' · '+t('托管方','Custodian')+'：'+TB.utils.esc(s.custodian)+'</div>'
       + '</div><div class="bond-hero-quote">'
@@ -601,7 +635,9 @@ TB.router.register('member', {
     ];
     if(cancelled){
       funds.push({label:t('取消时间','Cancelled At'), value:b.cancelledAt || '-'});
-      funds.push({label:t('定金处理','Deposit Outcome'), value:(depStatus === 'refunded' ? TB.ui.badge(t('全额退还','Refunded in full'),'success') : TB.ui.badge(t('没收全部定金','Deposit forfeited'),'error')) + (b.forfeitureReason ? ' · ' + TB.utils.esc(b.forfeitureReason) : '')});
+      funds.push({label:t('手续费扣除（不退）','Fee Deducted (non-refundable)')+TB.utils.note(t('USB 20 交易手续费为交易成本，取消时不予退还。','The USB 20 transaction fee is a trading cost and is not refunded on cancellation.')), value:TB.utils.money(b.feeRetained != null ? b.feeRetained : 20)});
+      funds.push({label:t('定金退还','Deposit Refund'), value:TB.utils.money(b.depositRefunded != null ? b.depositRefunded : (depStatus === 'refunded' ? Math.max(0, dep - 20) : 0))});
+      funds.push({label:t('定金没收','Deposit Forfeited'), value:TB.utils.money(b.depositForfeited != null ? b.depositForfeited : (depStatus === 'forfeited' ? Math.max(0, dep - 20) : 0)) + (b.forfeitureReason ? ' · ' + TB.utils.esc(b.forfeitureReason) : '')});
     }
     html += TB.ui.card(t('资金与结算','Funds & Settlement'), TB.ui.descList(funds));
     var tl = [{time:b.submittedAt, title:t('预定提交','Booking Submitted'), desc:t('预定已确认，窗口额度已冻结','Booking confirmed and window capacity locked'), status:'completed'}];
@@ -622,13 +658,39 @@ TB.router.register('member', {
     return html;
   },
   '/holdings/:holdingId': function(p){
+    var t = TB.pages.member.t;
     var h = TB.pages.member._holdingById(p.holdingId); var s = TB.pages.member._seriesById(h.series);
-    var html = TB.utils.contentHeader(TB.pages.member.t('持仓详情','Holding Detail'));
-    html += TB.ui.card(TB.pages.member.t('交易参数','Trade Parameters'), TB.ui.descList([{label:TB.t('lbl.seriesId'), value:h.series},{label:TB.t('lbl.faceValue'), value:TB.utils.money(h.faceValue)},{label:TB.pages.member.t('Token数量','Tokens'), value:TB.utils.tokens(h.tokens)},{label:TB.pages.member.t('起息日','Value Date'), value:h.checkin},{label:TB.pages.member.t('赎回日期','Redemption Date'), value:h.maturityDate}]));
-    html += TB.ui.card(TB.pages.member.t('估值','Valuation'), TB.ui.descList([{label:TB.pages.member.t('当前估值','Current Value'), value:TB.utils.indicative(h.valuation, TB.utils.money)},{label:TB.pages.member.t('预期收益','Expected Return'), value:TB.utils.indicative(h.expectedReturn, TB.utils.money)},{label:TB.pages.member.t('卖方收益率','Seller Yield'), value:TB.utils.yield(s.sellerYield)}]));
-    html += TB.ui.card(TB.pages.member.t('操作时间线','Operation Timeline'), TB.ui.timeline([{time:'2026-10-29 10:00:00', title:TB.pages.member.t('预定','Booked'), desc:TB.pages.member.t('预定已确认','Booking confirmed'), status:'completed'},{time:'2026-10-31 15:00:00', title:TB.pages.member.t('交割','Settled'), desc:TB.pages.member.t('DVP 交割完成','DVP complete'), status:'completed'},{time:'2026-11-01 00:00:00', title:TB.pages.member.t('待赎回','Awaiting Redemption'), desc:TB.pages.member.t('系统按赎回日自动执行赎回','Auto redemption scheduled on the redemption date'), status:'active'}]));
+    var hold = Math.max(0, Math.round((new Date(h.maturityDate + 'T00:00:00') - new Date(h.checkin + 'T00:00:00')) / 86400000));
+    var expYield = (h.faceValue > 0 && hold > 0) ? h.expectedReturn / h.faceValue * (365 / hold) * 100 : 0;
+    var netYield = (h.faceValue > 0 && hold > 0) ? (h.expectedReturn - 20) / h.faceValue * (365 / hold) * 100 : 0;
+    var html = TB.utils.contentHeader(t('持仓详情','Holding Detail') + ' · ' + h.id);
+    html += TB.ui.card(t('交易参数','Trade Parameters'), TB.ui.descList([
+      {label:TB.t('lbl.seriesId'), value:h.series},
+      {label:TB.t('lbl.productName'), value:TB.utils.esc(s.name || '-')},
+      {label:TB.t('lbl.faceValue'), value:TB.utils.money(h.faceValue)},
+      {label:t('Token数量','Tokens'), value:TB.utils.tokens(h.tokens)},
+      {label:t('起息日','Value Date'), value:h.checkin},
+      {label:t('赎回日期','Redemption Date'), value:h.maturityDate},
+      {label:t('持有天数','Holding Days')+TB.utils.note(t('持有天数 = 赎回日期 − 起息日。','Holding days = redemption date minus value date.')), value:hold + ' ' + t('天','days')},
+      {label:t('成交价格','Execution Price'), value:TB.utils.price(s.markPrice)},
+      {label:t('卖方收益率','Seller Yield'), value:TB.utils.yield(h.sellerYield)},
+      {label:t('参考市场收益率','Market Reference Yield'), value:TB.utils.yield(s.refYield)},
+      {label:t('交易手续费','Transaction Fee'), value:TB.utils.money(20)},
+      {label:TB.t('status'), value:TB.ui.statusBadge(h.status)}
+    ]));
+    html += TB.ui.card(t('估值与收益','Valuation & Return'), TB.ui.descList([
+      {label:t('当前估值','Current Value'), value:TB.utils.indicative(h.valuation, TB.utils.money)},
+      {label:t('预期收益','Expected Return'), value:TB.utils.indicative(h.expectedReturn, TB.utils.money)},
+      {label:t('预期收益率','Expected Yield')+TB.utils.note(t('预期收益率 = 预期收益 ÷ 面值 × 365 ÷ 持有天数（未扣手续费）。','Expected yield = expected return ÷ face × 365 ÷ holding days, before fees.')), value:TB.utils.indicative(expYield, TB.utils.yieldFmt)},
+      {label:t('扣费后年化收益率','Net Annualized Yield')+TB.utils.note(t('扣费后年化收益率 =（预期收益 − 交易手续费）÷ 面值 × 365 ÷ 持有天数。','Net annualized yield = (expected return − transaction fee) ÷ face × 365 ÷ holding days.')), value:TB.utils.yieldFmt(netYield)}
+    ]));
+    html += TB.ui.card(t('操作时间线','Operation Timeline'), TB.ui.timeline([
+      {time:h.checkin + ' 09:30:00', title:t('买入成交','Trade Settled'), desc:t('DVP 交割完成，R-UST 已入持仓','DVP complete; R-UST credited to holdings'), status:'completed'},
+      {time:h.maturityDate + ' 17:00:00', title:t('待赎回','Awaiting Redemption'), desc:t('系统按赎回日自动执行赎回','Auto redemption on the redemption date'), status:'active'}
+    ]));
     return html;
   },
+
   '/transactions': function(){
     var html = TB.utils.contentHeader(TB.pages.member.t('持仓管理','Holdings Management'), '<button class="btn btn-primary" onclick="TB.utils.toast(\''+TB.t('export')+'\',\'info\')">'+TB.t('export')+'</button>');
     html += TB.ui.alert('info', TB.pages.member.t('交易记录入口已归并到持仓管理中，可通过分类切换查看全部交易流水。','Transactions are now grouped under Holdings Management and can be reviewed through the category switch above.'));
@@ -733,10 +795,13 @@ TB.pages.member.cancelBooking = function(id){
     {label:t('起息日','Value Date'), value:b.checkin},
     {label:t('免费取消截止','Free-cancel Deadline')+TB.utils.note(t('起息日前 2 个交易日（参数）前可免费取消并全额退还定金。','Free cancellation with a full deposit refund is allowed until 2 trading days (configurable) before the value date.')), value:deadline},
     {label:t('定金','Deposit'), value:TB.utils.money(dep)},
-    {label:t('本次取消结果','Cancellation Outcome'), value: free ? TB.ui.badge(t('全额退还定金','Full deposit refund'),'success') : TB.ui.badge(t('没收全部定金','Deposit forfeited'),'error')}
+    {label:t('手续费扣除（不退）','Fee Deducted (non-refundable)')+TB.utils.note(t('USB 20 交易手续费为交易成本，取消时不予退还。','The USB 20 transaction fee is a trading cost and is not refunded on cancellation.')), value:TB.utils.money(20)},
+    {label:t('定金退还','Deposit Refund'), value:TB.utils.money(free ? Math.max(0, dep - 20) : 0)},
+    {label:t('定金没收','Deposit Forfeited'), value:TB.utils.money(free ? 0 : Math.max(0, dep - 20))},
+    {label:t('本次取消结果','Cancellation Outcome'), value: free ? TB.ui.badge(t('退还定金（扣手续费后）','Deposit refunded net of fee'),'success') : TB.ui.badge(t('没收定金（扣手续费后）','Deposit forfeited net of fee'),'error')}
   ]) + '<div class="mt-2 text-sm" style="color:var(--text-secondary);line-height:1.8">'
-    + t('规则：起息日前 2 个交易日前取消，全额退还定金；逾期取消、或起息日截止（Value Date cut-off）余额不足（含最长 1 小时宽限后仍不足）被系统取消的，没收全部定金。预定时锁定的是收益差 gap 而非价格，故无价格风险。',
-        'Rule: cancelling at least 2 trading days before the value date refunds the deposit in full; late cancellation, or system cancellation for insufficient balance at the value-date cut-off (after the 1-hour grace), forfeits the entire deposit. The booking locks the yield gap, not the price, so there is no price risk.')
+    + t('规则：起息日前 2 个交易日前取消，退还定金（扣除 USB 20 手续费）；逾期取消、或起息日截止（Value Date cut-off）余额不足（含最长 1 小时宽限后仍不足）被系统取消的，没收定金（扣除手续费后部分）。预定时锁定的是收益差 gap 而非价格，故无价格风险。',
+        'Rule: cancelling at least 2 trading days before the value date refunds the deposit net of the USB 20 fee; late cancellation, or system cancellation for insufficient balance at the value-date cut-off (after the 1-hour grace), forfeits the deposit net of the fee. The booking locks the yield gap, not the price, so there is no price risk.')
     + '</div>';
   TB.ui.modal({
     title: t('取消预订','Cancel Booking'),
@@ -755,9 +820,12 @@ TB.pages.member.confirmCancelBooking = function(id){
   b.status = 'cancelled';
   b.cancelledAt = TB.utils.nowET();
   b.depositStatus = free ? 'refunded' : 'forfeited';
+  b.feeRetained = 20;
+  b.depositRefunded = free ? Math.max(0, (b.deposit || 0) - 20) : 0;
+  b.depositForfeited = free ? 0 : Math.max(0, (b.deposit || 0) - 20);
   b.forfeitureReason = free ? '' : t('逾期取消','Late cancellation');
   TB.ui.closeModal();
-  TB.utils.toast(free ? t('预订已取消，定金全额退还','Booking cancelled; deposit refunded in full') : t('预订已取消，定金没收','Booking cancelled; deposit forfeited'), free ? 'success' : 'error');
+  TB.utils.toast(free ? t('预订已取消，退还定金 ','Booking cancelled; deposit refunded ') + TB.utils.money(b.depositRefunded) + t('（已扣手续费 USB 20）',' (net of the USB 20 fee)') : t('预订已取消，没收定金 ','Booking cancelled; deposit forfeited ') + TB.utils.money(b.depositForfeited), free ? 'success' : 'error');
   TB.router.render();
 };
 TB.pages.member.openHolding = function(id){ TB.router.navigate('#/holdings/' + id); };

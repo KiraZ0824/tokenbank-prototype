@@ -194,7 +194,7 @@ TB.ops.openSeriesReview = function(id) {
   body += '<div class="font-bold mt-4 mb-2">' + TB.ops._t('发行资料与风险揭示','Documents & Risk Disclosure') + '</div>'
     + TB.ui.descList([
       {label: TB.ops._t('上传文件','Uploaded Files'), value: (s.files && s.files.length) ? s.files.map(function(x){ return TB.utils.esc(typeof x === 'string' ? x : x.name); }).join('、') : TB.ops._t('无','None')},
-      {label: TB.ops._t('风险揭示书版本','Risk Disclosure Version'), value: pick(f.riskVersion, 'v3')},
+      {label: TB.ops._t('风险揭示书文件','Risk Disclosure Files'), value: (s.riskFiles && s.riskFiles.length) ? s.riskFiles.map(function(x){ return TB.utils.esc(x.name); }).join('、') : TB.ops._t('未上传','Not uploaded')},
       {label: TB.ops._t('发行信息责任确认','Responsibility Confirmed'), value: f.agree === false ? TB.ui.badge(TB.ops._t('未确认','Not confirmed'), 'error') : TB.ui.badge(TB.ops._t('已确认','Confirmed'), 'success')},
       {label: TB.ops._t('备注','Remarks'), value: TB.utils.esc(pick(f.remarks, TB.ops._t('无','None')))}
     ]);

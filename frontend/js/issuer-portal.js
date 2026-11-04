@@ -121,9 +121,9 @@ TB.pages.issuer.openIssuance = function(seriesId){
   if(seriesId){
     var row = TB.data.series.find(function(s){ return s.id === seriesId; });
     if(!row) return;
-    TB.pages.issuer._issuance = { id:seriesId, step:row.step || 0, data:Object.assign({}, row.form || {}), files:(row.files || []).slice() };
+    TB.pages.issuer._issuance = { id:seriesId, step:row.step || 0, data:Object.assign({}, row.form || {}), files:(row.files || []).slice(), riskFiles:(row.riskFiles || []).slice() };
   } else {
-    TB.pages.issuer._issuance = { id:TB.pages.issuer._nextSeriesId(), step:0, data:{}, files:[] };
+    TB.pages.issuer._issuance = { id:TB.pages.issuer._nextSeriesId(), step:0, data:{}, files:[], riskFiles:[] };
   }
   TB.pages.issuer.renderIssuanceDrawer();
 };
@@ -152,7 +152,7 @@ TB.pages.issuer._persistIssuance = function(status){
     TB.data.series.push(row);
     row.faceAvailable = row.faceTotal;
   }
-  row.form = d; row.files = st.files.slice(); row.step = st.step;
+  row.form = d; row.files = st.files.slice(); row.riskFiles = (st.riskFiles || []).slice(); row.step = st.step;
   if(d.productName) row.name = d.productName;
   if(d.custodian) row.custodian = d.custodian;
   if(d.faceTotal) row.faceTotal = Number(d.faceTotal) || row.faceTotal;
@@ -197,6 +197,21 @@ TB.pages.issuer.addIssuanceFile = function(){
   TB.pages.issuer.renderIssuanceDrawer();
 };
 
+TB.pages.issuer.addRiskFile = function(){
+  var st = TB.pages.issuer._issuance;
+  if(!st) return;
+  var n = st.riskFiles.length + 1;
+  st.riskFiles.push({ id:'R' + Date.now() + n, name:'Risk_Disclosure_v3_' + n + '.pdf', size:(0.2 + n * 0.1).toFixed(1) + ' MB', time:TB.utils.nowET() });
+  TB.pages.issuer.renderIssuanceDrawer();
+};
+
+TB.pages.issuer.removeRiskFile = function(id){
+  var st = TB.pages.issuer._issuance;
+  if(!st) return;
+  st.riskFiles = st.riskFiles.filter(function(f){ return f.id !== id; });
+  TB.pages.issuer.renderIssuanceDrawer();
+};
+
 TB.pages.issuer.removeIssuanceFile = function(id){
   var st = TB.pages.issuer._issuance;
   if(!st) return;
@@ -217,6 +232,10 @@ TB.pages.issuer.submitIssuance = function(){
   }
   if(!d.cusip || !d.isin){
     TB.utils.toast(t('请填写底层资产 CUSIP 与 ISIN','CUSIP and ISIN of the underlying asset are required'), 'error');
+    return;
+  }
+  if(!st.riskFiles.length){
+    TB.utils.toast(t('请上传风险揭示书文件','Please upload the risk disclosure document'), 'error');
     return;
   }
   if(d.agree === false){
@@ -294,7 +313,13 @@ TB.pages.issuer._issuanceStepBody = function(st, step){
       + filesTable;
   }
   if(step.key === 'risk-disclosure'){
-    return TB.ui.formField({label:t('版本说明','Version Note'), name:'iss_riskVersion', type:'textarea', value:d.riskVersion || '', hint:t('该版本将用于成员购买前确认留痕。','This version is recorded in the member pre-purchase acknowledgment.')});
+    var riskTable = st.riskFiles.length
+      ? TB.ui.table({ columns:[{key:'name',label:t('文件名','File Name')},{key:'size',label:t('大小','Size')},{key:'time',label:TB.t('time')}], data:st.riskFiles, actions:[{label:TB.t('delete'), onClick:'TB.pages.issuer.removeRiskFile', type:'danger'}], paginate:false })
+      : TB.ui.emptyState('📎', t('尚未上传风险揭示书','No risk disclosure uploaded yet'));
+    return '<div class="form-group"><label class="form-label">'+t('风险揭示书上传','Risk Disclosure Upload')+'</label>'
+      + '<div class="upload-zone" onclick="TB.pages.issuer.addRiskFile()">📎<div class="mt-2">'+t('拖拽风险揭示书到此处，或点击上传（PDF）','Drag the risk disclosure here or click to upload (PDF)')+'</div></div>'
+      + '<div class="form-hint">'+t('上传的风险揭示书将用于成员购买/预定前的确认留痕。','The uploaded risk disclosure is recorded in the member pre-purchase acknowledgment.')+'</div></div>'
+      + riskTable;
   }
   var flow = TB.pages.issuer.flowByType('issuance');
   var pathHtml = flow && flow.nodes.length
