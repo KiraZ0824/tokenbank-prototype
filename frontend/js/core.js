@@ -1374,7 +1374,11 @@ document.addEventListener('click', function(e){
   if(dd && dd.classList.contains('show') && !e.target.closest('.topbar-icon-btn') && !e.target.closest('#notif-dropdown')){
     dd.classList.remove('show');
   }
-  if(!e.target.closest('.dp-wrap')){
+  /* 月历导航/选日会在点击处理中重渲染弹层，事件目标随即脱离 DOM，
+   * 故用 composedPath 判断点击是否发生在日期控件内，避免误关闭。 */
+  var path = e.composedPath ? e.composedPath() : [];
+  var inDp = path.some(function(n){ return n && n.classList && n.classList.contains('dp-wrap'); });
+  if(!inDp && !e.target.closest('.dp-wrap')){
     document.querySelectorAll('.dp-pop.show').forEach(function(p){ p.classList.remove('show'); });
   }
 });

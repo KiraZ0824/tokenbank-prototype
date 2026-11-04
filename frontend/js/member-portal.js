@@ -267,6 +267,8 @@ TB.pages.member.openOrderConfirm = function(kind){
       {label:t('预期收益率','Expected Yield'), value:TB.utils.indicative(yld, TB.utils.yieldFmt)},
       {label:t('交易手续费','Transaction Fee'), value:TB.utils.money(20)},
       {label:t('现金应付','Cash Payable'), value:TB.utils.money(cash)},
+      {label:t('当前可用 EMT','Available EMT'), value:TB.utils.money(emt)},
+      {label:t('资金缺口','Funding Shortfall'), value: Math.max(0, cash - emt) > 0 ? TB.ui.badge(TB.utils.money(cash - emt) + ' ' + t('待充值','to top up'), 'error') : TB.ui.badge(t('已备足','Fully funded'), 'success')},
       {label:t('扣款后可用 EMT','EMT After Debit'), value:TB.utils.money(emt - cash)}
     ];
   } else {
@@ -326,6 +328,11 @@ TB.pages.member.confirmOrder = function(kind){
   var out = TB.utils.getInputVal('trade_checkout');
   var cin = TB.utils.getInputVal('trade_checkin') || TB.pages.member._bookValueDate();
   var cout = TB.utils.getInputVal('trade_checkout');
+  if(kind === 'buy' && face * s.markPrice + 20 > TB.pages.member.walletEmt()){
+    TB.ui.closeModal();
+    TB.utils.toast(t('可用 EMT 不足，无法提交买入','Available EMT is insufficient; the purchase cannot be submitted'), 'error');
+    return;
+  }
   TB.ui.closeModal();
   if(kind === 'buy'){
     var hold = Math.round((new Date(out + 'T00:00:00') - new Date(bd + 'T00:00:00')) / 86400000);
@@ -355,6 +362,12 @@ TB.pages.member.submitBuy = function(seriesId){
   var face = Number(TB.utils.getInputVal('trade_face'));
   if(!face || face < 100000 || face % 10000 !== 0){
     TB.utils.toast(t('买入面值需不低于 100,000 且为 10,000 的整数倍','Face value must be at least 100,000 and a multiple of 10,000'), 'error');
+    return;
+  }
+  var cashNeed = face * TB.pages.member._currentSeries.markPrice + 20;
+  var emtBal = TB.pages.member.walletEmt();
+  if(cashNeed > emtBal){
+    TB.utils.toast(t('可用 EMT 不足，缺口 ','Available EMT is insufficient; shortfall ') + TB.utils.money(cashNeed - emtBal) + t('，请先充值','; please top up first'), 'error');
     return;
   }
   if(!TB.utils.getInputVal('trade_checkout')){
@@ -409,6 +422,12 @@ TB.pages.member.calcTrade = function(){
       + calcRow('预期收益率','Expected Yield',['预期收益率 = 预期收益 ÷ 面值 × 365 ÷ 持有天数（未扣手续费），仅供参考不构成保证收益。','Expected yield = expected return ÷ face × 365 ÷ holding days, before fees; indicative only.'], TB.utils.yieldFmt(buyYield))
       + calcRow('现金应付','Cash Payable',['现金应付 = 面值 × 当前价格 + USB 20 交易费。','Cash payable = face × current price + USB 20 fee.'], TB.utils.money(cash))
       + calcRow('扣费后年化收益率','Net Annualized Yield',['扣费后年化收益率 =（预期收益 − 交易手续费）÷ 面值 × 365 ÷ 持有天数。','Net annualised yield = (expected return − transaction fee) ÷ face × 365 ÷ holding days.'], TB.utils.yieldFmt(net));
+    var buyShort = Math.max(0, cash - TB.pages.member.walletEmt());
+    if(face > 0 && buyShort > 0){
+      rows += '<div class="trade-date-err">⚠️ ' + (TB.state.lang === 'zh'
+        ? '现金应付 <strong>' + TB.utils.money(cash) + '</strong>，当前可用 EMT 缺口 <strong>' + TB.utils.money(buyShort) + '</strong>；请先充值，否则无法提交买入。'
+        : 'Cash payable is <strong>' + TB.utils.money(cash) + '</strong> and available EMT is short by <strong>' + TB.utils.money(buyShort) + '</strong>; top up first, otherwise the purchase cannot be submitted.') + '</div>';
+    }
   } else {
     var cin = TB.utils.getInputVal('trade_checkin');
     var cout = TB.utils.getInputVal('trade_checkout');
