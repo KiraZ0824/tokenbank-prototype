@@ -729,7 +729,7 @@ TB.router.register('member', {
     return html;
   },
   '/accounts': function(){
-    var html = TB.utils.contentHeader(TB.pages.member.t('子账号列表','Sub-Accounts'), '<button class="btn btn-primary" onclick="TB.router.navigate(\'#\/accounts\/new\')">'+TB.t('create')+'</button>');
+    var html = TB.utils.contentHeader(TB.pages.member.t('子账号列表','Sub-Accounts'), '<button class="btn btn-primary" onclick="TB.pages.member.openCreateAccount()">'+TB.t('create')+'</button>');
     html += TB.ui.filterBar({ fields:[{name:'status',label:TB.t('status'),type:'select',options:[{value:'',label:TB.t('all')},{value:'active',label:TB.utils.enumLabel('active')},{value:'suspended',label:TB.utils.enumLabel('suspended')}]},{name:'role',label:TB.t('lbl.role'),type:'select',options:[{value:'',label:TB.t('all')},{value:'Admin',label:'Admin'},{value:'Trader',label:'Trader'}]},{name:'keyword',label:TB.pages.member.t('关键词','Keyword'),type:'text'}], exportBtn:true });
     html += TB.ui.table({ columns:[{label:TB.pages.member.t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role'},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
       var off = r.raw === 'deactivated';
@@ -739,9 +739,6 @@ TB.router.register('member', {
         + '<span class="tag-link" onclick="TB.pages.member.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
     }}], data:TB.pages.member._accountRows() });
     return html;
-  },
-  '/accounts/new': function(){
-    return TB.utils.contentHeader(TB.pages.member.t('创建子账号','Create Sub-account'), '<button class="btn btn-primary" onclick="TB.ui.confirmModal(\''+TB.t('save')+'\',\''+TB.t('msg.confirmSubmit')+'\',\'TB.utils.toast(\\\''+TB.t('msg.saveSuccess')+'\\\',\\\'success\\\')\')">'+TB.t('save')+'</button>') + TB.ui.card(TB.pages.member.t('基本信息','Basic Info'), TB.ui.formField({label:TB.t('lbl.email'),name:'new_email',type:'text'}) + TB.ui.formField({label:TB.pages.member.t('手机号','Phone'),name:'new_phone',type:'text'}) + TB.ui.formField({label:TB.t('lbl.role'),name:'new_role',type:'select',options:[{value:'Admin',label:'Admin'},{value:'Trader',label:'Trader'},{value:'Viewer',label:'Viewer'}]}));
   },
   '/accounts/:accountId/edit': function(p){
     var a = TB.pages.member._accountById(p.accountId);
@@ -782,7 +779,7 @@ TB.router.register('member', {
       {key:'accounts',label:t('账号管理','Accounts'),active:true},
       {key:'compliance',label:t('合规与安全','Compliance & Security')}
     ], content:{
-      accounts: TB.ui.table({ columns:[{label:t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role',render:function(r){ return roleName(r.role); }},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
+      accounts: '<div class="mb-2" style="text-align:right"><button class="btn btn-sm btn-primary" onclick="TB.pages.member.openCreateAccount()">'+TB.t('create')+'</button></div>' + TB.ui.table({ columns:[{label:t('账号名','Account'),key:'name'},{label:TB.t('lbl.email'),key:'email'},{label:TB.t('lbl.role'),key:'role',render:function(r){ return roleName(r.role); }},{label:TB.t('status'),key:'status'},{label:TB.t('created'),key:'created'},{label:TB.t('lastLogin'),key:'lastLogin'},{label:TB.t('actions'),key:'go',render:function(r){
         var off = r.raw === 'deactivated';
         return '<span class="tag-link" onclick="TB.pages.member.editAccount(\''+r.id+'\')">'+TB.t('edit')+'</span> '
           + '<span class="tag-link" onclick="TB.pages.member.manageAccountPermissions(\''+r.id+'\')">'+t('权限管理','Permissions')+'</span> '
@@ -850,6 +847,35 @@ TB.pages.member.confirmCancelBooking = function(id){
 };
 TB.pages.member.openHolding = function(id){ TB.router.navigate('#/holdings/' + id); };
 TB.pages.member.openBooking = function(id){ TB.router.navigate('#/bookings/' + id); };
+TB.pages.member._nextAccountId = function(){
+  var n = 0;
+  TB.data.accounts.forEach(function(a){ var m = String(a.id).match(/ACC-(\d+)/); if(m) n = Math.max(n, +m[1]); });
+  return 'ACC-' + String(n + 1).padStart(3, '0');
+};
+TB.pages.member.openCreateAccount = function(){
+  var t = TB.pages.member.t;
+  var body = TB.ui.formField({label:t('账号名','Account Name'), name:'new_name', type:'text', required:true})
+    + TB.ui.formField({label:TB.t('lbl.email'), name:'new_email', type:'text', required:true})
+    + TB.ui.formField({label:TB.t('lbl.role'), name:'new_role', type:'select', options:TB.data.roles.member.map(function(r){ return {value:r.id, label:TB.text(r.name), selected:r.id === 'Viewer'}; })});
+  TB.ui.modal({
+    title:t('创建子账号','Create Sub-account'),
+    body:body,
+    footer:'<button class="btn" onclick="TB.ui.closeModal()">'+TB.t('cancel')+'</button><button class="btn btn-primary" onclick="TB.pages.member.saveNewAccount()">'+TB.t('save')+'</button>'
+  });
+};
+TB.pages.member.saveNewAccount = function(){
+  var t = TB.pages.member.t;
+  var name = (TB.utils.getInputVal('new_name') || '').trim();
+  var email = (TB.utils.getInputVal('new_email') || '').trim();
+  if(!name){ TB.utils.toast(t('请填写账号名','Account name is required'), 'error'); return; }
+  if(!email || email.indexOf('@') < 0){ TB.utils.toast(t('请填写有效邮箱','Please enter a valid email'), 'error'); return; }
+  if(TB.data.accounts.some(function(a){ return a.email === email; })){ TB.utils.toast(t('该邮箱已存在账号','An account with this email already exists'), 'error'); return; }
+  var role = TB.utils.getInputVal('new_role') || 'Viewer';
+  TB.data.accounts.push({ id:TB.pages.member._nextAccountId(), name:name, email:email, role:role, org:TB.state.user ? TB.state.user.org : 'Alpha Fund Management', status:'active', created:TB.utils.nowET().slice(0, 10), lastLogin:'-' });
+  TB.ui.closeModal();
+  TB.utils.toast(t('账号已创建','Account created'), 'success');
+  TB.router.render();
+};
 TB.pages.member.editAccount = function(id){ TB.router.navigate('#/accounts/' + id + '/edit'); };
 TB.pages.member.manageAccountPermissions = function(id){ TB.router.navigate('#/accounts/' + id + '/permissions'); };
 TB.pages.member.toggleAccountStatus = function(id){

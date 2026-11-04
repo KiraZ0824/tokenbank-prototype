@@ -61,8 +61,9 @@ TB.pages.issuer._resetPwdDone = function(id){
 };
 TB.pages.issuer.newAccount = function(){
   var t = TB.pages.issuer.t;
-  var body = TB.ui.formField({label:TB.t('lbl.email'), name:'new_email', type:'text', required:true})
-    + TB.ui.formField({label:TB.t('lbl.role'), name:'new_role', type:'select', options:TB.data.roles.issuer.map(function(r){ return {value:r.id, label:TB.text(r.name)}; })});
+  var body = TB.ui.formField({label:t('账号名','Account Name'), name:'new_name', type:'text', required:true})
+    + TB.ui.formField({label:TB.t('lbl.email'), name:'new_email', type:'text', required:true})
+    + TB.ui.formField({label:TB.t('lbl.role'), name:'new_role', type:'select', options:TB.data.roles.issuer.map(function(r){ return {value:r.id, label:TB.text(r.name), selected:r.id === 'Viewer'}; })});
   TB.ui.modal({
     title: t('创建账号','Create Account'),
     body: body,
@@ -71,13 +72,24 @@ TB.pages.issuer.newAccount = function(){
 };
 TB.pages.issuer.saveNewAccount = function(){
   var t = TB.pages.issuer.t;
-  var email = TB.utils.getInputVal('new_email');
+  var name = (TB.utils.getInputVal('new_name') || '').trim();
+  var email = (TB.utils.getInputVal('new_email') || '').trim();
+  if(!name){
+    TB.utils.toast(t('请填写账号名','Account name is required'), 'error');
+    return;
+  }
   if(!email || email.indexOf('@') < 0){
     TB.utils.toast(t('请填写有效邮箱','Please enter a valid email'), 'error');
     return;
   }
+  if(TB.data.accounts.some(function(a){ return a.email === email; })){
+    TB.utils.toast(t('该邮箱已存在账号','An account with this email already exists'), 'error');
+    return;
+  }
   var role = TB.utils.getInputVal('new_role') || 'Viewer';
-  TB.data.accounts.push({id:'ACC-'+(100 + TB.data.accounts.length), name:email.split('@')[0], email:email, role:role, org:'Bison Bank', status:'active', created:TB.utils.nowET().slice(0, 10), lastLogin:'-'});
+  var nextN = 0;
+  TB.data.accounts.forEach(function(a){ var m = String(a.id).match(/ACC-(\d+)/); if(m) nextN = Math.max(nextN, +m[1]); });
+  TB.data.accounts.push({id:'ACC-' + String(nextN + 1).padStart(3, '0'), name:name, email:email, role:role, org:'Bison Bank', status:'active', created:TB.utils.nowET().slice(0, 10), lastLogin:'-'});
   TB.ui.closeModal();
   TB.utils.toast(TB.t('msg.saveSuccess'), 'success');
   TB.router.render();
