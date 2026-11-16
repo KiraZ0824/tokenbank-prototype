@@ -89,7 +89,7 @@ TB.pages.issuer.saveNewAccount = function(){
   var role = TB.utils.getInputVal('new_role') || 'Viewer';
   var nextN = 0;
   TB.data.accounts.forEach(function(a){ var m = String(a.id).match(/ACC-(\d+)/); if(m) nextN = Math.max(nextN, +m[1]); });
-  TB.data.accounts.push({id:'ACC-' + String(nextN + 1).padStart(3, '0'), name:name, email:email, role:role, org:'Bison Bank', status:'active', created:TB.utils.nowET().slice(0, 10), lastLogin:'-'});
+  TB.data.accounts.push({id:'ACC-' + String(nextN + 1).padStart(3, '0'), name:name, email:email, role:role, org:(TB.state.portal === 'group' ? 'Bison Group' : 'Bison Bank'), status:'active', created:TB.utils.nowET().slice(0, 10), lastLogin:'-'});
   TB.ui.closeModal();
   TB.utils.toast(TB.t('msg.saveSuccess'), 'success');
   TB.router.render();
@@ -769,7 +769,7 @@ TB.pages.issuer._flowSel = 'AF-ISSU';
 TB.pages.issuer.flowById = function(id){ return TB.data.approvalFlows.find(function(f){ return f.id === id; }); };
 TB.pages.issuer.flowByType = function(type){ return TB.data.approvalFlows.find(function(f){ return f.type === type; }); };
 TB.pages.issuer.taskById = function(id){ return TB.data.approvalTasks.find(function(x){ return x.id === id; }); };
-TB.pages.issuer.orgAccounts = function(){ return TB.data.accounts.filter(function(a){ return a.org === 'Bison Bank' && a.status === 'active'; }); };
+TB.pages.issuer.orgAccounts = function(){ var org = TB.state.portal === 'group' ? 'Bison Group' : 'Bison Bank'; return TB.data.accounts.filter(function(a){ return a.org === org && a.status === 'active'; }); };
 TB.pages.issuer.now = function(){ return TB.utils.nowET(); };
 TB.pages.issuer.modeLabel = function(mode){
   var t = TB.pages.issuer.t;
@@ -1090,7 +1090,7 @@ TB.router.register('issuer', {
     ], data: active, paginate: false });
     html += '<div class="dash-split">';
     html += '<div class="dash-split-narrow">'+TB.ui.card(TB.pages.issuer.t('待办事项','Pending Tasks')+' ('+pending.length+')', '<div class="dash-rows" id="dash-tasks">'+taskHtml+'</div>'+viewAll('#/review-center'))+'</div>';
-    html += '<div class="dash-split-wide">'+TB.ui.card(TB.pages.issuer.t('活跃Series列表','Active Series List'), '<div id="dash-series">'+seriesTable+'</div>'+viewAll('#/series'))+'</div>';
+    html += '<div class="dash-split-wide">'+TB.ui.card(TB.pages.issuer.t('活跃Series列表','Active Series List'), '<div id="dash-series">'+seriesTable+'</div>'+viewAll('#/positions'))+'</div>';
     html += '</div>';
     return html;
   },
@@ -1366,11 +1366,11 @@ TB.router.register('issuer', {
           + '<span class="tag-link" onclick="TB.pages.issuer.toggleAccountStatus(\''+r.id+'\')">'+(off ? t('启用','Enable') : t('停用','Disable'))+'</span> '
           + '<span class="tag-link" onclick="TB.pages.issuer.resetAccountPwd(\''+r.id+'\')">'+TB.t('resetPwd')+'</span>';
       }}
-    ], data:TB.data.accounts.filter(function(a){ return a.org === 'Bison Bank'; }) });
+    ], data:TB.data.accounts.filter(function(a){ return a.org === (TB.state.portal === 'group' ? 'Bison Group' : 'Bison Bank'); }) });
   },
   '/accounts/:accountId/permissions': function(p){
     var a = TB.data.accounts.find(function(x){ return x.id === p.accountId; }) || TB.data.accounts[0];
-    return TB.ui.permPage('issuer', a);
+    return TB.ui.permPage(TB.state.portal === 'group' ? 'group' : 'issuer', a);
   },
   '/notifications': function(){
     return TB.utils.contentHeader(TB.pages.issuer.t('通知中心','Notifications'), '<button class="btn btn-primary" onclick="TB.pages.issuer.markAllReadNotif()">'+TB.t('markAllRead')+'</button>') + TB.ui.table({ columns:[{key:'title',label:'Title'},{key:'desc',label:TB.t('remarks')},{key:'time',label:TB.t('time')},{key:'status',label:TB.t('status')}], data:TB.data.notifications, actions:[{label:TB.t('delete'), onClick:'TB.pages.issuer.deleteNotif', type:'danger'}] });
@@ -1417,3 +1417,52 @@ TB.router.register('issuer', {
     return html;
   }
 });
+
+
+/* ====== Portal split (2026-11): Bison Bank 仅保留产品创建/提交；
+ * Bison Group 承接持仓监控、报价、销毁审核、EMT、审核中心与流程配置 ====== */
+TB.pages.group = TB.pages.group || {};
+TB.pages.issuer._issuerDashboard = function(){
+  var t = TB.pages.issuer.t;
+  var all = TB.data.series;
+  var c = {total:all.length, approving:0, open:0, draft:0};
+  all.forEach(function(x){ if(x.status === 'approving') c.approving++; else if(x.status === 'open') c.open++; else if(x.status === 'draft') c.draft++; });
+  var html = TB.utils.contentHeader(t('发行方首页','Issuer Dashboard'), '<button class="btn btn-primary" onclick="TB.pages.issuer.openIssuance()">'+t('新建产品','New Product')+'</button>');
+  html += '<div class="stat-grid">'
+    + TB.ui.statCard(t('产品总数','Total Products'), String(c.total))
+    + TB.ui.statCard(t('审批中','Under Approval'), String(c.approving))
+    + TB.ui.statCard(t('已开放','Open'), String(c.open))
+    + TB.ui.statCard(t('草稿','Drafts'), String(c.draft))
+    + '</div>';
+  var recent = all.slice().sort(function(a, b){ return a.createdAt < b.createdAt ? 1 : -1; }).slice(0, 8);
+  html += TB.ui.card(t('最近产品提交','Recent Submissions'), TB.ui.table({ columns:[
+    {key:'id', label:TB.t('lbl.seriesId'), render:function(r){ return '<span class="row-plain" onclick="TB.pages.issuer.openSeriesRow(\''+r.id+'\')">'+r.id+'</span>'; }},
+    {key:'name', label:TB.t('lbl.productName'), render:function(r){ return TB.utils.esc(r.name); }},
+    {key:'status', label:TB.t('status'), render:function(r){ return TB.ui.statusBadge(r.status); }},
+    {key:'createdAt', label:t('创建/提交时间','Created / Submitted')},
+    {key:'go', label:TB.t('actions'), render:function(r){ return '<span class="tag-link" onclick="TB.pages.issuer.openSeriesRow(\''+r.id+'\')">'+t('查看 / 编辑','View / Edit')+'</span>'; }}
+  ], data:recent, paginate:false }));
+  html += '<div class="text-muted text-sm mt-2">'+t('产品提交后进入 Bison Group 产品审核与 TokenBank 后台 IT 审核；审核进度请关注通知中心。','After submission the product goes through Bison Group product review and TokenBank back-office IT review; track progress in Notifications.')+'</div>';
+  return html;
+};
+(function(){
+  var IR = TB.router.routes.issuer;
+  var groupRoutes = {
+    '/dashboard': IR['/dashboard'],
+    '/positions': IR['/positions'],
+    '/quotes': IR['/quotes'],
+    '/burn': IR['/burn'],
+    '/emt': IR['/emt'],
+    '/review-center': IR['/review-center'],
+    '/approvals/flows': IR['/approvals/flows'],
+    '/series/:id': IR['/series/:id'],
+    '/accounts': IR['/accounts'],
+    '/accounts/:accountId/permissions': IR['/accounts/:accountId/permissions'],
+    '/notifications': IR['/notifications']
+  };
+  ['/positions','/quotes','/burn','/emt','/review-center','/approvals/flows'].forEach(function(k){ delete IR[k]; });
+  TB.router.register('group', groupRoutes);
+  TB.router.routes.issuer['/dashboard'] = TB.pages.issuer._issuerDashboard;
+  TB.pages.group.afterRender = TB.pages.issuer.afterRender;
+  delete TB.pages.issuer.afterRender;
+})();

@@ -98,7 +98,7 @@ TB.i18n = {
   'msg.requiredFields':{en:'Please fill in required fields',zh:'请填写必填字段'},'msg.insufficientBalance':{en:'Insufficient balance',zh:'可用余额不足'},
   'msg.quoteExpired':{en:'Quote expired, please refresh',zh:'报价已过期，请刷新'},'msg.operationSuccess':{en:'Operation successful',zh:'操作成功'},
   // portal
-  'portal.member':{en:'Member Portal',zh:'成员机构端'},'portal.issuer':{en:'Issuer Portal',zh:'发行机构端'},'portal.ops':{en:'Operations Portal',zh:'运营管理端'},
+  'portal.member':{en:'Member Portal',zh:'成员机构端'},'portal.issuer':{en:'Issuer Portal (Bison Bank)',zh:'发行机构端（Bison Bank）'},'portal.group':{en:'Bison Group Portal',zh:'Bison Group 端'},'portal.ops':{en:'Operations Portal',zh:'运营管理端'},
 };
 TB.t = function(k){var i=TB.i18n[k];return i?i[TB.state.lang]||i.en:k;};
 TB.text = function(v){
@@ -229,6 +229,8 @@ TB.data = {
     {id:'I002',name:'Maria Garcia',email:'mgarcia@bisonbank.com',role:'issuer_staff',portal:'issuer',org:'Bison Bank',remiId:'RM-BISON-001'},
     {id:'I003',name:'Robert Taylor',email:'rtaylor@bisonbank.com',role:'issuer_compliance',portal:'issuer',org:'Bison Bank',remiId:'RM-BISON-001'},
     {id:'I004',name:'Linda Chen',email:'lchen@bisonbank.com',role:'issuer_treasury',portal:'issuer',org:'Bison Bank',remiId:'RM-BISON-001'},
+    {id:'G001',name:'Daniel Park',email:'daniel@bisongroup.com',role:'group_admin',portal:'group',org:'Bison Group',remiId:'RM-BG-001'},
+    {id:'G002',name:'Grace Liu',email:'grace@bisongroup.com',role:'group_officer',portal:'group',org:'Bison Group',remiId:'RM-BG-001'},
     {id:'O001',name:'Admin User',email:'admin@tokenbank.io',role:'sys_admin',portal:'ops',org:'TokenBank Operations',remiId:'TB-ADMIN'},
     {id:'O002',name:'Review Manager',email:'review@tokenbank.io',role:'reviewer',portal:'ops',org:'TokenBank Operations',remiId:'TB-REVIEW'},
   ],
@@ -260,6 +262,7 @@ TB.data = {
     {id:'MEM-005',name:'Epsilon Investments',remiId:'RM-EPSI-005',type:'Member',country:'Japan',kyb:'Passed',subStatus:'Active',emtBalance:15200000,createdAt:'2026-07-10',status:'active'},
     {id:'MEM-006',name:'Zeta Financial Group',remiId:'RM-ZETA-006',type:'Issuer',country:'Luxembourg',kyb:'Passed',subStatus:'Active',emtBalance:50000000,createdAt:'2026-06-01',status:'active'},
     {id:'MEM-007',name:'Bison Bank',remiId:'RM-BISON-001',type:'Issuer',country:'Luxembourg',kyb:'Passed',subStatus:'Active',emtBalance:18500000,createdAt:'2026-05-20',status:'active'},
+    {id:'MEM-008',name:'Bison Group',remiId:'RM-BG-001',type:'Issuer',country:'Luxembourg',kyb:'Passed',subStatus:'Active',emtBalance:50000000,createdAt:'2026-05-10',status:'active'},
   ],
   transactions: [
     {id:'TX-20261102-001',time:'2026-11-02 10:15:00',type:'Purchase',amount:500000,fee:20,status:'settled',series:'R-UST-2026-001',member:'Alpha Fund Management',remarks:'DVP settled'},
@@ -316,6 +319,9 @@ TB.data = {
     {id:'ACC-014',name:'Omar Haddad',email:'omar@delta-am.co.uk',role:'Admin',org:'Delta Asset Management',status:'active',created:'2026-10-28',lastLogin:'-'},
     {id:'ACC-015',name:'Ken Sato',email:'ken@epsilon-inv.jp',role:'Admin',org:'Epsilon Investments',status:'active',created:'2026-07-12',lastLogin:'2026-11-02 10:20:00'},
     {id:'ACC-016',name:'Claire Dubois',email:'claire@zeta-fg.lu',role:'Admin',org:'Zeta Financial Group',status:'active',created:'2026-06-15',lastLogin:'2026-11-02 07:45:00'},
+    {id:'ACC-017',name:'Daniel Park',email:'daniel@bisongroup.com',role:'Admin',org:'Bison Group',status:'active',created:'2026-05-10',lastLogin:'2026-11-02 09:15:00'},
+    {id:'ACC-018',name:'Grace Liu',email:'grace@bisongroup.com',role:'Officer',org:'Bison Group',status:'active',created:'2026-05-12',lastLogin:'2026-11-02 08:05:00'},
+    {id:'ACC-019',name:'Victor Reyes',email:'victor@bisongroup.com',role:'Compliance',org:'Bison Group',status:'active',created:'2026-05-20',lastLogin:'2026-11-01 17:40:00'},
   ],
   reconciliations: [
     {id:'REC-20261102',date:'2026-11-02',series:'UST-2026-001',status:'matched',diffCount:0,time:'2026-11-02 06:30:00'},
@@ -393,35 +399,35 @@ TB.data = {
   ],
   approvalFlows: [
     {id:'AF-ISSU',type:'issuance',name:{en:'Issuance Approval',zh:'发行申请审批'},enabled:true,updatedAt:'2026-10-20 11:00:00',nodes:[
-      {id:'N1',order:1,name:{en:'Maker Review',zh:'Maker初审'},approvers:['Maria Garcia'],mode:'any'},
-      {id:'N2',order:2,name:{en:'Compliance Review',zh:'合规复核'},approvers:['Robert Taylor'],mode:'all'},
-      {id:'N3',order:3,name:{en:'Final Approval',zh:'终审'},approvers:['James Wilson','Linda Chen'],mode:'any'}
+      {id:'N1',order:1,name:{en:'Maker Review',zh:'Maker初审'},approvers:['Daniel Park'],mode:'any'},
+      {id:'N2',order:2,name:{en:'Compliance Review',zh:'合规复核'},approvers:['Victor Reyes'],mode:'all'},
+      {id:'N3',order:3,name:{en:'Final Approval',zh:'终审'},approvers:['Daniel Park','Grace Liu'],mode:'any'}
     ]},
     {id:'AF-BURN',type:'burn',name:{en:'Burn Approval',zh:'销毁申请审批'},enabled:true,updatedAt:'2026-10-18 09:30:00',nodes:[
-      {id:'N1',order:1,name:{en:'Maker Review',zh:'Maker初审'},approvers:['Maria Garcia'],mode:'any'},
-      {id:'N2',order:2,name:{en:'Burn Review',zh:'销毁复核'},approvers:['James Wilson','Robert Taylor'],mode:'all'},
-      {id:'N3',order:3,name:{en:'Final Approval',zh:'终审'},approvers:['James Wilson'],mode:'all'}
+      {id:'N1',order:1,name:{en:'Maker Review',zh:'Maker初审'},approvers:['Daniel Park'],mode:'any'},
+      {id:'N2',order:2,name:{en:'Burn Review',zh:'销毁复核'},approvers:['Grace Liu','Victor Reyes'],mode:'all'},
+      {id:'N3',order:3,name:{en:'Final Approval',zh:'终审'},approvers:['Daniel Park'],mode:'all'}
     ]}
   ],
   approvalTasks: [
-    {id:'APR-001',flow:'AF-BURN',ref:'BRN-002',applicant:'James Wilson',submittedAt:'2026-11-02 08:00:00',nodeOrder:2,approvers:['James Wilson','Robert Taylor'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',nodeApprovals:['James Wilson'],trail:[
-      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-11-02 08:30:00',remarks:'Documents complete'},
-      {node:{en:'Burn Review',zh:'销毁复核'},approver:'James Wilson',decision:'approved',time:'2026-11-02 09:10:00',remarks:'Redemption and reconciliation verified'}
+    {id:'APR-001',flow:'AF-BURN',ref:'BRN-002',applicant:'James Wilson',submittedAt:'2026-11-02 08:00:00',nodeOrder:2,approvers:['Grace Liu','Victor Reyes'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',nodeApprovals:['Grace Liu'],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Daniel Park',decision:'approved',time:'2026-11-02 08:30:00',remarks:'Documents complete'},
+      {node:{en:'Burn Review',zh:'销毁复核'},approver:'Grace Liu',decision:'approved',time:'2026-11-02 09:10:00',remarks:'Redemption and reconciliation verified'}
     ]},
-    {id:'APR-002',flow:'AF-ISSU',ref:'R-UST-2026-007',applicant:'James Wilson',submittedAt:'2026-11-01 17:00:00',nodeOrder:2,approvers:['Robert Taylor'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',nodeApprovals:[],trail:[
-      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-11-01 17:40:00',remarks:'OK'}
+    {id:'APR-002',flow:'AF-ISSU',ref:'R-UST-2026-007',applicant:'James Wilson',submittedAt:'2026-11-01 17:00:00',nodeOrder:2,approvers:['Victor Reyes'],status:'pending',priority:'High',completedAt:'-',decidedBy:'-',nodeApprovals:[],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Daniel Park',decision:'approved',time:'2026-11-01 17:40:00',remarks:'OK'}
     ]},
-    {id:'APR-003',flow:'AF-ISSU',ref:'R-UST-2026-015',applicant:'Maria Garcia',submittedAt:'2026-11-02 14:00:00',nodeOrder:3,approvers:['James Wilson','Linda Chen'],status:'pending',priority:'Medium',completedAt:'-',decidedBy:'-',nodeApprovals:[],trail:[
-      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-11-02 14:20:00',remarks:'Product basics complete'},
-      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Robert Taylor',decision:'approved',time:'2026-11-02 16:05:00',remarks:'Risk disclosure v3 attached'}
+    {id:'APR-003',flow:'AF-ISSU',ref:'R-UST-2026-015',applicant:'Maria Garcia',submittedAt:'2026-11-02 14:00:00',nodeOrder:3,approvers:['Daniel Park','Grace Liu'],status:'pending',priority:'Medium',completedAt:'-',decidedBy:'-',nodeApprovals:[],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Daniel Park',decision:'approved',time:'2026-11-02 14:20:00',remarks:'Product basics complete'},
+      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Victor Reyes',decision:'approved',time:'2026-11-02 16:05:00',remarks:'Risk disclosure v3 attached'}
     ]},
-    {id:'APR-004',flow:'AF-ISSU',ref:'R-UST-2026-004',applicant:'Maria Garcia',submittedAt:'2026-10-27 10:00:00',nodeOrder:2,approvers:['Robert Taylor'],status:'rejected',priority:'Medium',completedAt:'2026-10-28 11:00:00',decidedBy:'Robert Taylor',nodeApprovals:[],trail:[
-      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-10-27 10:30:00',remarks:'OK'},
-      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Robert Taylor',decision:'rejected',time:'2026-10-28 11:00:00',remarks:'Risk disclosure version outdated'}
+    {id:'APR-004',flow:'AF-ISSU',ref:'R-UST-2026-004',applicant:'Maria Garcia',submittedAt:'2026-10-27 10:00:00',nodeOrder:2,approvers:['Victor Reyes'],status:'rejected',priority:'Medium',completedAt:'2026-10-28 11:00:00',decidedBy:'Victor Reyes',nodeApprovals:[],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Daniel Park',decision:'approved',time:'2026-10-27 10:30:00',remarks:'OK'},
+      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Victor Reyes',decision:'rejected',time:'2026-10-28 11:00:00',remarks:'Risk disclosure version outdated'}
     ]},
-    {id:'APR-005',flow:'AF-ISSU',ref:'R-UST-2026-018',applicant:'Linda Chen',submittedAt:'2026-10-30 09:20:00',nodeOrder:2,approvers:['Robert Taylor'],status:'returned',priority:'Medium',completedAt:'2026-10-30 15:40:00',decidedBy:'Robert Taylor',nodeApprovals:[],trail:[
-      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Maria Garcia',decision:'approved',time:'2026-10-30 10:00:00',remarks:'OK'},
-      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Robert Taylor',decision:'returned',time:'2026-10-30 15:40:00',remarks:'Underlying CUSIP does not match the term sheet; returned to the initiator'}
+    {id:'APR-005',flow:'AF-ISSU',ref:'R-UST-2026-018',applicant:'Linda Chen',submittedAt:'2026-10-30 09:20:00',nodeOrder:2,approvers:['Victor Reyes'],status:'returned',priority:'Medium',completedAt:'2026-10-30 15:40:00',decidedBy:'Victor Reyes',nodeApprovals:[],trail:[
+      {node:{en:'Maker Review',zh:'Maker初审'},approver:'Daniel Park',decision:'approved',time:'2026-10-30 10:00:00',remarks:'OK'},
+      {node:{en:'Compliance Review',zh:'合规复核'},approver:'Victor Reyes',decision:'returned',time:'2026-10-30 15:40:00',remarks:'Underlying CUSIP does not match the term sheet; returned to the initiator'}
     ]}
   ],
 };
@@ -513,6 +519,8 @@ TB.data.roles = {
     {id:'Viewer', name:{zh:'只读',en:'Viewer'}, perms:['series.view','quotes.view','positions.view','recon.view','emt.view']},
   ],
 };
+TB.data.permCatalog.group = TB.data.permCatalog.issuer;
+TB.data.roles.group = TB.data.roles.issuer;
 TB.utils.allPermKeys = function(portal){
   var keys = [];
   (TB.data.permCatalog[portal] || []).forEach(function(g){ g.items.forEach(function(i){ keys.push(i.key); }); });
@@ -565,6 +573,18 @@ TB.nav = {
     ]},
     { group:'grp.rustMgmt', items:[
       { label:'nav.series', icon:'series', route:'#/series' },
+    ]},
+    { group:null, items:[
+      { label:'nav.reconciliation', icon:'reconcile', route:'#/reconciliation' },
+      { label:'nav.issuerAccounts', icon:'account', route:'#/accounts' },
+      { label:'nav.issuerNotif', icon:'notification', route:'#/notifications' },
+    ]},
+  ],
+  group: [
+    { group:null, items:[
+      { label:'nav.dashboard', icon:'dashboard', route:'#/dashboard' },
+    ]},
+    { group:'grp.rustMgmt', items:[
       { label:'nav.positionMonitor', icon:'positions', route:'#/positions' },
       { label:'nav.quotes', icon:'quotes', route:'#/quotes' },
       { label:'nav.burn', icon:'burn', route:'#/burn' },
@@ -577,7 +597,6 @@ TB.nav = {
       { label:'nav.approvalConfig', icon:'settings', route:'#/approvals/flows' },
     ]},
     { group:null, items:[
-      { label:'nav.reconciliation', icon:'reconcile', route:'#/reconciliation' },
       { label:'nav.issuerAccounts', icon:'account', route:'#/accounts' },
       { label:'nav.issuerNotif', icon:'notification', route:'#/notifications' },
     ]},
@@ -621,7 +640,7 @@ TB.ui = {
   table: function(cfg){
     var cols = cfg.columns || [];
     var data = cfg.data || [];
-    var paginate = cfg.paginate !== false && (cfg.pagination || TB.state.portal === 'issuer' || TB.state.portal === 'ops');
+    var paginate = cfg.paginate !== false && (cfg.pagination || TB.state.portal === 'issuer' || TB.state.portal === 'group' || TB.state.portal === 'ops');
     var pageSize = (cfg.pagination && cfg.pagination.pageSize) || 10;
     var key = TB.state.route + '|t' + (TB.state._tableSeq++);
     var pages = Math.max(1, Math.ceil(data.length / pageSize));
@@ -1091,7 +1110,7 @@ TB.auth = {
 
   showLogin: function(){
     var portal = TB.state.lang === 'zh' ? '选择入口' : 'Select Portal';
-    var memberT = TB.t('portal.member'), issuerT = TB.t('portal.issuer'), opsT = TB.t('portal.ops');
+    var memberT = TB.t('portal.member'), issuerT = TB.t('portal.issuer'), groupT = TB.t('portal.group'), opsT = TB.t('portal.ops');
     var loginT = TB.t('login'), pwdT = TB.state.lang === 'zh' ? '密码' : 'Password', twofaT = TB.state.lang === 'zh' ? '2FA验证码' : '2FA Code';
     var emailPh = TB.state.lang === 'zh' ? '请输入邮箱' : 'Enter email';
     var pwdPh = TB.state.lang === 'zh' ? '请输入密码' : 'Enter password';
@@ -1125,6 +1144,7 @@ TB.auth = {
             <div class="login-tabs">\
               <div class="login-tab active" onclick="TB.auth.selectLoginPortal(\'member\',this)">'+memberT+'</div>\
               <div class="login-tab" onclick="TB.auth.selectLoginPortal(\'issuer\',this)">'+issuerT+'</div>\
+              <div class="login-tab" onclick="TB.auth.selectLoginPortal(\'group\',this)">'+groupT+'</div>\
               <div class="login-tab" onclick="TB.auth.selectLoginPortal(\'ops\',this)">'+opsT+'</div>\
             </div>\
             <div class="login-meta-row">\
@@ -1149,7 +1169,7 @@ TB.auth = {
     var tabs = el.parentNode.querySelectorAll('.login-tab');
     tabs.forEach(function(t){ t.classList.remove('active'); });
     el.classList.add('active');
-    var emailMap = { member:'john@alpha-fund.com', issuer:'jwilson@bisonbank.com', ops:'admin@tokenbank.io' };
+    var emailMap = { member:'john@alpha-fund.com', issuer:'jwilson@bisonbank.com', group:'daniel@bisongroup.com', ops:'admin@tokenbank.io' };
     document.getElementById('login_email').value = emailMap[portal];
   },
 
