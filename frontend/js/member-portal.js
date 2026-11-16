@@ -205,6 +205,25 @@ TB.pages.member._consentOk = function(){
 
 /* 日期校验：起息日（Value Date）与赎回日（Redemption Date）均须为交易日，非交易日不可选择 */
 TB.pages.member._validateDates = function(){ return TB.pages.member._validateOrder(); };
+/* 挂单日期校验：起息日/赎回日均须交易日，赎回日晚于起息日，持有天数不超过产品窗口 */
+TB.pages.member._validateOrder = function(){
+  var t = TB.pages.member.t;
+  var errs = [];
+  var bad = t('为非交易日，不可选为起息日或赎回日','is a non-trading day; non-trading days cannot be a value or redemption date');
+  var cin = TB.utils.getInputVal('trade_checkin');
+  var cout = TB.utils.getInputVal('trade_checkout');
+  if(cin && !TB.utils.isTradingDay(cin)) errs.push(t('起息日','Value date')+' '+cin+' '+bad);
+  if(cout && !TB.utils.isTradingDay(cout)) errs.push(t('赎回日','Redemption date')+' '+cout+' '+bad);
+  if(cin && cout && cout <= cin) errs.push(t('赎回日期须晚于起息日','The redemption date must be after the value date'));
+  if(cin && cout){
+    var hold = Math.round((new Date(cout + 'T00:00:00') - new Date(cin + 'T00:00:00')) / 86400000);
+    var ser = TB.pages.member._currentSeries;
+    if(ser && hold > ser.windowDays) errs.push(t('持有天数','Holding days')+' '+hold+' '+t('超出产品窗口','exceeds the product window')+'（'+ser.windowDays+' '+t('天','days')+'）');
+  }
+  var el = document.getElementById('trade_date_err');
+  if(el) el.innerHTML = errs.length ? '⚠️ ' + errs.join('<br>⚠️ ') : '';
+  return errs.length === 0;
+};
 TB.pages.member.openOrderConfirm = function(kind){
   var t = TB.pages.member.t;
   var s = TB.pages.member._currentSeries;
