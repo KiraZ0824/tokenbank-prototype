@@ -160,7 +160,7 @@ TB.pages.issuer._persistIssuance = function(status){
   var d = st.data;
   var row = TB.data.series.find(function(s){ return s.id === st.id; });
   if(!row){
-    row = { id:st.id, name:t('未命名产品','Untitled Product'), cusip:'', isin:'', issuer:'Bison Bank', custodian:'Bison Bank', maturityDate:'', faceTotal:0, faceAvailable:0, sellerYield:0, refYield:0, bpSpread:50, markPrice:0, windowDays:27, quoteProvider:'Bison Bank', priceSource:'Bison Treasury Desk', quoteTime:'-', quoteValidUntil:'-', valuationDate:'-', status:'draft', createdAt:TB.utils.nowET().slice(0, 10) };
+    row = { id:st.id, name:t('未命名产品','Untitled Product'), cusip:'', isin:'', issuer:'Bison Group', custodian:'Bison Bank', maturityDate:'', faceTotal:0, faceAvailable:0, sellerYield:0, refYield:0, bpSpread:50, markPrice:0, windowDays:27, quoteProvider:'Bison Group', priceSource:'Bison Treasury Desk', quoteTime:'-', quoteValidUntil:'-', valuationDate:'-', status:'draft', createdAt:TB.utils.nowET().slice(0, 10) };
     TB.data.series.push(row);
     row.faceAvailable = row.faceTotal;
   }
@@ -276,7 +276,7 @@ TB.pages.issuer._issuanceStepBody = function(st, step){
         TB.ui.formField({label:t('Series编号','Series ID'), name:'iss_seriesId', value:st.id, disabled:true, hint:t('系统自动生成，不可修改','Auto-generated and read-only')}),
         TB.ui.formField({label:t('币种','Currency'), name:'iss_currency', value:'USB', disabled:true}))
       + row2(
-        TB.ui.formField({label:t('发行方','Issuer'), name:'iss_issuer', value:'Bison Bank', disabled:true}),
+        TB.ui.formField({label:t('发行方','Issuer'), name:'iss_issuer', value:'Bison Group', disabled:true}),
         TB.ui.formField({label:t('托管方','Custodian'), name:'iss_custodian', required:true, value:d.custodian || 'Bison Bank'}))
       + row2(
         TB.ui.formField({label:t('发行总面值','Total Face Value'), name:'iss_faceTotal', type:'number', required:true, value:d.faceTotal || '', hint:t('USB，按面值步进取整','USB, rounded to the face step')}),
@@ -289,7 +289,7 @@ TB.pages.issuer._issuanceStepBody = function(st, step){
         TB.ui.formField({label:t('参考市场收益率','Reference Yield'), name:'iss_refYield', type:'number', required:true, value:d.refYield || ''}))
       + row2(
         TB.ui.formField({label:t('bp 差异','bp Spread'), name:'iss_bpSpread', value:bp, disabled:true, hint:t('=(卖方收益率 − 参考收益率) × 10000，自动计算','Auto-calculated from yields')}),
-        TB.ui.formField({label:t('报价提供方','Quote Provider'), name:'iss_quoteProvider', value:d.quoteProvider || 'Bison Bank'}))
+        TB.ui.formField({label:t('报价提供方','Quote Provider'), name:'iss_quoteProvider', value:d.quoteProvider || 'Bison Group'}))
       + row2(
         TB.ui.formField({label:t('价格来源','Price Source'), name:'iss_priceSource', value:d.priceSource || 'Bison Treasury Desk'}),
         TB.ui.formField({label:t('最小购买额','Min Purchase'), name:'iss_minPurchase', type:'number', value:d.minPurchase || '100000'}))
