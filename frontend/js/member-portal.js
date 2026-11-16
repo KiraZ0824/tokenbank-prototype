@@ -449,7 +449,6 @@ TB.pages.member._tradePanel = function(s, purchasable){
   );
   html += '<div class="trade-date-err" id="trade_date_err"></div>';
   html += '<div id="trade-calc"></div>';
-  html += '<div class="text-muted text-sm mt-4" style="line-height:1.8">'+t('合规校验与资金校验由系统自动完成，客户无需手动勾选。','Compliance and funding checks are performed automatically; no manual consent required.')+'</div>';
   html += '<button class="btn btn-primary btn-lg btn-block mt-4"'+(purchasable ? '' : ' disabled')+' onclick="TB.pages.member.submitOrder(\''+s.id+'\')">'
     + t('挂单','Place Order') + ' ' + TB.utils.esc(s.id) + '</button>';
   html += '</div></div>';
