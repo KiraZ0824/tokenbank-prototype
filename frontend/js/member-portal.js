@@ -202,11 +202,7 @@ TB.pages.member._bookValueDate = function(){
 };
 
 TB.pages.member._consentOk = function(){
-  var t = TB.pages.member.t;
-  var risk = document.getElementById('consent_risk');
-  var disc = document.getElementById('consent_disclaimer');
-  if(!risk || !risk.checked){ TB.utils.toast(t('请先阅读并同意风险揭示书','Please read and agree to the risk disclosure first'), 'error'); return false; }
-  if(!disc || !disc.checked){ TB.utils.toast(t('请先同意 TokenBank 平台免责声明','Please agree to the TokenBank platform disclaimer first'), 'error'); return false; }
+  /* 合规与资金校验由系统自动完成，不再让客户手动勾选确认 */
   return true;
 };
 
@@ -491,6 +487,15 @@ TB.pages.member._tradePanel = function(s, purchasable){
     + '<div class="trade-tab'+(tab === 'book' ? ' active' : '')+'" onclick="TB.pages.member.setTradeTab(\'book\')">'+t('预定','Book Ahead')+'</div>'
     + '</div><div class="trade-body">';
   html += field(t('可用 EMT','Available EMT'), t('来自 Token Bank 钱包可用余额，金额单位为 USB；买入扣款与预定定金均从中扣减。','From your Token Bank wallet available balance, denominated in USB; purchase debits and booking deposits are taken from it.'), TB.utils.money(emt), true);
+  if(tab === 'buy'){
+    var refPrice = TB.utils.price(s.markPrice);
+    var bidVal = s.markPrice;
+    html += '<div class="trade-field"><div class="trade-field-label"><span>'+t('挂单价格','Bid Price')+TB.utils.note(t('成员可自定义买入价格；旁边为 Bison 最新参考报价，供定价参考。','Set your own bid price; the reference price beside it is Bison’s latest quote for guidance.'))+'</span></div>'
+      + '<div class="trade-field-inline" style="font-size:13px;align-items:center;gap:10px">'
+      + '<input type="number" class="form-input" id="trade_price" value="'+bidVal+'" style="max-width:160px">'
+      + '<span class="text-muted text-sm">'+t('参考价 ','Ref. ')+refPrice+'</span>'
+      + '</div></div>';
+  }
   html += '<div class="trade-field"><div class="trade-field-label"><span>'+(tab === 'buy' ? t('买入面值','Buy Face Value') : t('预定面值','Booking Face Value'))+TB.utils.note(t('不低于最小购买额 100,000，且为步进 10,000 的整数倍。','At least the 100,000 minimum purchase and a multiple of the 10,000 step.'))+'</span></div>'
     + '<input type="number" class="form-input" id="trade_face" value="1000000"></div>';
   if(tab === 'buy'){
@@ -511,10 +516,7 @@ TB.pages.member._tradePanel = function(s, purchasable){
   }
   html += '<div class="trade-date-err" id="trade_date_err"></div>';
   html += '<div id="trade-calc"></div>';
-  html += '<div class="trade-consent">'
-    + '<label class="form-checkbox"><input type="checkbox" id="consent_risk"><span>'+t('我已阅读并同意','I have read and agree to')+'《'+t('风险揭示书','Risk Disclosure')+' v3》'+TB.utils.note(t('风险揭示书随产品创建由发行方上传，购买前确认并留痕。','Uploaded by the issuer at product creation; acknowledged and recorded before purchase.'))+'</span></label>'
-    + '<label class="form-checkbox"><input type="checkbox" id="consent_disclaimer"><span>'+t('我已阅读并同意','I have read and agree to')+'《TokenBank '+t('平台免责声明','Platform Disclaimer')+'》'+TB.utils.note(t('平台仅负责展示、计算、校验与留痕；报价与兑付责任由卖方 Bison 承担。','The platform only displays, calculates, validates and records; quote and payout liability rests with the seller, Bison.'))+'</span></label>'
-    + '</div>';
+  html += '<div class="trade-field-inline mt-4" style="font-size:12px;color:var(--text-secondary)">'+t('合规校验与资金校验由系统自动完成，客户无需手动勾选。','Compliance and funding checks are performed automatically; no manual consent required.')+'</div>';
   html += '<button class="btn btn-primary btn-lg btn-block mt-4"'+(purchasable ? '' : ' disabled')+' onclick="'+(tab === 'buy' ? 'TB.pages.member.submitBuy(\''+s.id+'\')' : 'TB.pages.member.submitBooking(\''+s.id+'\')')+'">'
     + (tab === 'buy' ? t('买入','Buy') : t('预定','Book Ahead')) + ' ' + TB.utils.esc(s.id) + '</button>';
   html += '</div></div>';
