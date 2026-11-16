@@ -185,9 +185,6 @@ TB.pages.member._remindPanel = function(){
   return html;
 };
 
-TB.pages.member._tradeTab = 'buy';
-TB.pages.member.setTradeTab = function(k){ TB.pages.member._tradeTab = k; TB.router.render(); };
-
 TB.pages.member.walletEmt = function(){
   var org = TB.state.user ? TB.state.user.org : '';
   var m = TB.data.members.find(function(x){ return x.name === org; });
@@ -207,40 +204,12 @@ TB.pages.member._consentOk = function(){
 };
 
 /* 日期校验：起息日（Value Date）与赎回日（Redemption Date）均须为交易日，非交易日不可选择 */
-TB.pages.member._validateDates = function(){
-  var t = TB.pages.member.t;
-  var errs = [];
-  var bad = t('为非交易日，不可作为起息日或赎回日','is a non-trading day; non-trading days cannot be a value or redemption date');
-  if(TB.pages.member._tradeTab === 'buy'){
-    var bd = TB.utils.getInputVal('trade_buydate');
-    var out = TB.utils.getInputVal('trade_checkout');
-    if(out && !TB.utils.isTradingDay(out)) errs.push(t('赎回日','Redemption date')+' '+out+' '+bad);
-    if(bd && out){
-      if(out <= bd) errs.push(t('赎回日期须晚于起息日','The redemption date must be after the value date'));
-      var hold = Math.round((new Date(out + 'T00:00:00') - new Date(bd + 'T00:00:00')) / 86400000);
-      var ser = TB.pages.member._currentSeries;
-      if(ser && hold > ser.windowDays) errs.push(t('持有天数','Holding days')+' '+hold+' '+t('超出产品窗口','exceeds the product window')+'（'+ser.windowDays+' '+t('天','days')+'）');
-    }
-  } else {
-    var cin = TB.utils.getInputVal('trade_checkin');
-    var cout = TB.utils.getInputVal('trade_checkout');
-    var earliest = TB.pages.member._bookValueDate();
-    if(cin && !TB.utils.isTradingDay(cin)) errs.push(t('起息日','Value date')+' '+cin+' '+bad);
-    if(cin && cin < earliest) errs.push(t('起息日须为今天之后的交易日，最早可选 ','The value date must be a future trading day; the earliest selectable is ')+earliest);
-    if(cout && !TB.utils.isTradingDay(cout)) errs.push(t('赎回日','Redemption date')+' '+cout+' '+bad);
-    if(cin && cout && cout <= cin) errs.push(t('赎回日期须晚于起息日','The redemption date must be after the value date'));
-  }
-  var el = document.getElementById('trade_date_err');
-  if(el) el.innerHTML = errs.length ? '⚠️ ' + errs.join('<br>⚠️ ') : '';
-  return errs.length === 0;
-};
-
-/* 确认函：买入 / 预定提交前弹出，确认无误后才正式落单 */
+TB.pages.member._validateDates = function(){ return TB.pages.member._validateOrder(); };
 TB.pages.member.openOrderConfirm = function(kind){
   var t = TB.pages.member.t;
   var s = TB.pages.member._currentSeries;
   var face = Number(TB.utils.getInputVal('trade_face')) || 0;
-  var bd = TB.utils.getInputVal('trade_buydate') || TB.utils.defaultTradingDay();
+  var bd = TB.utils.getInputVal('trade_checkin') || TB.utils.defaultTradingDay();
   var out = TB.utils.getInputVal('trade_checkout');
   var cin = TB.utils.getInputVal('trade_checkin') || TB.pages.member._bookValueDate();
   var cout = TB.utils.getInputVal('trade_checkout');
@@ -320,7 +289,7 @@ TB.pages.member.confirmOrder = function(kind){
   var s = TB.pages.member._currentSeries;
   var org = TB.state.user ? TB.state.user.org : '';
   var face = Number(TB.utils.getInputVal('trade_face')) || 0;
-  var bd = TB.utils.getInputVal('trade_buydate') || TB.utils.defaultTradingDay();
+  var bd = TB.utils.getInputVal('trade_checkin') || TB.utils.defaultTradingDay();
   var out = TB.utils.getInputVal('trade_checkout');
   var cin = TB.utils.getInputVal('trade_checkin') || TB.pages.member._bookValueDate();
   var cout = TB.utils.getInputVal('trade_checkout');
@@ -353,102 +322,61 @@ TB.pages.member.confirmOrder = function(kind){
   }
 };
 
-TB.pages.member.submitBuy = function(seriesId){
-  var t = TB.pages.member.t;
-  var face = Number(TB.utils.getInputVal('trade_face'));
-  if(!face || face < 100000 || face % 10000 !== 0){
-    TB.utils.toast(t('买入面值需不低于 100,000 且为 10,000 的整数倍','Face value must be at least 100,000 and a multiple of 10,000'), 'error');
-    return;
-  }
-  var cashNeed = face * TB.pages.member._currentSeries.markPrice + 20;
-  var emtBal = TB.pages.member.walletEmt();
-  if(cashNeed > emtBal){
-    TB.utils.toast(t('可用 EMT 不足，缺口 ','Available EMT is insufficient; shortfall ') + TB.utils.money(cashNeed - emtBal) + t('，请先充值','; please top up first'), 'error');
-    return;
-  }
-  if(!TB.utils.getInputVal('trade_checkout')){
-    TB.utils.toast(t('请选择赎回日期','Please select a redemption date'), 'error');
-    return;
-  }
-  if(!TB.pages.member._validateDates()) return;
-  if(!TB.pages.member._consentOk()) return;
-  TB.pages.member.openOrderConfirm('buy');
-};
-
-TB.pages.member.submitBooking = function(seriesId){
-  var t = TB.pages.member.t;
-  var face = Number(TB.utils.getInputVal('trade_face'));
-  var cin = TB.utils.getInputVal('trade_checkin');
-  var cout = TB.utils.getInputVal('trade_checkout');
-  if(!face || face < 100000 || face % 10000 !== 0){
-    TB.utils.toast(t('预定面值需不低于 100,000 且为 10,000 的整数倍','Face value must be at least 100,000 and a multiple of 10,000'), 'error');
-    return;
-  }
-  if(!cin || !cout){
-    TB.utils.toast(t('请选择起息日与赎回日期','Please select the value date and redemption date'), 'error');
-    return;
-  }
-  if(!TB.pages.member._validateDates()) return;
-  if(!TB.pages.member._consentOk()) return;
-  TB.pages.member.openOrderConfirm('book');
-};
-
 TB.pages.member.calcTrade = function(){
   var t = TB.pages.member.t;
   var s = TB.pages.member._currentSeries;
   var el = document.getElementById('trade-calc');
   if(!s || !el) return;
   var face = Number(TB.utils.getInputVal('trade_face')) || 0;
+  var bd = TB.utils.getInputVal('trade_checkin') || TB.utils.defaultTradingDay();
+  var out = TB.utils.getInputVal('trade_checkout');
+  var days = (bd && out) ? Math.max(0, Math.round((new Date(out + 'T00:00:00') - new Date(bd + 'T00:00:00')) / 86400000)) : 0;
+  var bidPrice = Number(TB.utils.getInputVal('trade_price')) || s.markPrice;
+  var ret = face * s.refYield * days / 365;
+  var gap = s.sellerYield - s.refYield;
+  var isToday = (bd === TB.utils.defaultTradingDay());
   var rows = '';
   var calcRow = function(zh, en, note, valueHtml){
     return '<div class="bond-calc-row"><span>'+t(zh, en)+(note ? TB.utils.note(t(note[0], note[1])) : '')+'</span><strong>'+valueHtml+'</strong></div>';
   };
-  if(TB.pages.member._tradeTab === 'buy'){
-    var bd = TB.utils.getInputVal('trade_buydate') || TB.utils.defaultTradingDay();
-    var out = TB.utils.getInputVal('trade_checkout');
-    var hold = out ? Math.max(0, Math.round((new Date(out + 'T00:00:00') - new Date(bd + 'T00:00:00')) / 86400000)) : 0;
-    var ret = face * s.refYield * hold / 365;
-    var cash = face * s.markPrice + 20;
-    var net = (face > 0 && hold > 0) ? (ret - 20) / face * (365 / hold) * 100 : 0;
-    var valuation = face * s.markPrice;
-    var buyYield = (face > 0 && hold > 0) ? ret / face * (365 / hold) * 100 : 0;
-    rows = calcRow('持有天数','Holding Days',['持有天数 = 赎回日期 − 起息日，可短于产品窗口。','Holding days = redemption date minus value date; may be shorter than the product window.'], hold+' '+t('天','days'))
-      + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 当前价格，交割后作为持仓估值基准。','Expected valuation = face × current price; used as the position value after settlement.'], TB.utils.money(valuation))
+  rows = calcRow('持有天数','Holding Days',['持有天数 = 赎回日期 − 起息日，可短于产品窗口。','Holding days = redemption date minus value date; may be shorter than the product window.'], days+' '+t('天','days'));
+  if(isToday){
+    var cash = face * bidPrice + 20;
+    var net = (face > 0 && days > 0) ? (ret - 20) / face * (365 / days) * 100 : 0;
+    var valuation = face * bidPrice;
+    var buyYield = (face > 0 && days > 0) ? ret / face * (365 / days) * 100 : 0;
+    rows += calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 挂单价格，交割后作为持仓估值基准。','Expected valuation = face × bid price; used as the position value after settlement.'], TB.utils.money(valuation))
       + calcRow('预期收益','Expected Return',['预期收益 = 面值 × 参考收益率 × 持有天数 / 365，仅供参考不构成保证收益。','Expected return = face × reference yield × holding days / 365; indicative only.'], TB.utils.money(ret))
       + calcRow('预期收益率','Expected Yield',['预期收益率 = 预期收益 ÷ 面值 × 365 ÷ 持有天数（未扣手续费），仅供参考不构成保证收益。','Expected yield = expected return ÷ face × 365 ÷ holding days, before fees; indicative only.'], TB.utils.yieldFmt(buyYield))
-      + calcRow('现金应付','Cash Payable',['现金应付 = 面值 × 当前价格 + USB 20 交易费。','Cash payable = face × current price + USB 20 fee.'], TB.utils.money(cash))
+      + calcRow('现金应付','Cash Payable',['现金应付 = 面值 × 挂单价格 + USB 20 交易费。','Cash payable = face × bid price + USB 20 fee.'], TB.utils.money(cash))
       + calcRow('扣费后年化收益率','Net Annualized Yield',['扣费后年化收益率 =（预期收益 − 交易手续费）÷ 面值 × 365 ÷ 持有天数。','Net annualised yield = (expected return − transaction fee) ÷ face × 365 ÷ holding days.'], TB.utils.yieldFmt(net));
     var buyShort = Math.max(0, cash - TB.pages.member.walletEmt());
     if(face > 0 && buyShort > 0){
       rows += '<div class="trade-date-err">⚠️ ' + (TB.state.lang === 'zh'
-        ? '现金应付 <strong>' + TB.utils.money(cash) + '</strong>，当前可用 EMT 缺口 <strong>' + TB.utils.money(buyShort) + '</strong>；请先充值，否则无法提交买入。'
-        : 'Cash payable is <strong>' + TB.utils.money(cash) + '</strong> and available EMT is short by <strong>' + TB.utils.money(buyShort) + '</strong>; top up first, otherwise the purchase cannot be submitted.') + '</div>';
+        ? '现金应付 <strong>' + TB.utils.money(cash) + '</strong>，当前可用 EMT 缺口 <strong>' + TB.utils.money(buyShort) + '</strong>；请先充值，否则无法提交。'
+        : 'Cash payable is <strong>' + TB.utils.money(cash) + '</strong> and available EMT is short by <strong>' + TB.utils.money(buyShort) + '</strong>; top up first, otherwise the order cannot be submitted.') + '</div>';
     }
   } else {
-    var cin = TB.utils.getInputVal('trade_checkin');
-    var cout = TB.utils.getInputVal('trade_checkout');
-    var days = (cin && cout) ? Math.max(0, Math.round((new Date(cout) - new Date(cin)) / 86400000)) : 0;
-    var gap = s.sellerYield - s.refYield;
     var dep = face > 0 ? 20 + face * gap * days / 365 : 0;
-    var bVal = face * s.markPrice;
+    var bVal = face * bidPrice;
     var bRet = face * s.refYield * days / 365;
     var bYield = (face > 0 && days > 0) ? (bRet - dep) / face * (365 / days) * 100 : 0;
     var bPayable = Math.max(0, face - dep);
     var bShort = Math.max(0, bPayable - Math.max(0, TB.pages.member.walletEmt() - dep));
-    rows = calcRow('窗口天数','Window Days',['窗口天数 = 赎回日期 − 起息日，须为交易日区间。','Window days = redemption date minus value date, over trading days.'], days+' '+t('天','days'))
-      + calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 当前价格，交割后作为持仓估值基准。','Expected valuation = face × current price; used as the position value after settlement.'], TB.utils.money(bVal))
+    rows += calcRow('预期估值','Expected Valuation',['预期估值 = 面值 × 挂单价格，交割后作为持仓估值基准。','Expected valuation = face × bid price; used as the position value after settlement.'], TB.utils.money(bVal))
       + calcRow('预期收益','Expected Return',['预期收益 = 面值 × 参考收益率 × 窗口天数 / 365，仅供参考不构成保证收益。','Expected return = face × reference yield × window days / 365; indicative only.'], TB.utils.money(bRet))
       + calcRow('预估定金','Estimated Deposit',['定金 = USB 20 + 面值 × 收益差 × 窗口天数 / 365，提交时从可用 EMT 扣收。','Deposit = USB 20 + face × yield gap × window days / 365, charged from available EMT on submission.'], TB.utils.money(dep))
-      + calcRow('起息日应付','Payable on Value Date',['起息日 cut-off 系统校验可用余额后自动扣款成交，金额 = 预定面值 − 已付定金。','At the value-date cut-off the system verifies the available balance and settles automatically; the debit equals booking face value minus the deposit paid.'], TB.utils.money(bPayable))
+      + calcRow('起息日应付','Payable on Value Date',['起息日 cut-off 系统校验可用余额后自动扣款成交，金额 = 面值 − 已付定金。','At the value-date cut-off the system verifies the available balance and settles automatically; the debit equals face minus deposit paid.'], TB.utils.money(bPayable))
       + calcRow('预期收益率','Expected Yield',['预期收益率 =（预期收益 − 预估定金）÷ 面值 × 365 ÷ 窗口天数，仅供参考不构成保证收益。','Expected yield = (expected return − estimated deposit) ÷ face × 365 ÷ window days; indicative only.'], TB.utils.yieldFmt(bYield));
     if(face > 0 && bShort > 0){
       rows += '<div class="trade-date-err">⚠️ ' + (TB.state.lang === 'zh'
-        ? '起息日需支付 <strong>' + TB.utils.money(bPayable) + '</strong>，当前可用 EMT 缺口 <strong>' + TB.utils.money(bShort) + '</strong>；请在起息日 cut-off 前完成充值，否则预定转入「待补款」，宽限期结束仍未补足将被取消并没收全部定金。'
-        : 'The value-date payment is <strong>' + TB.utils.money(bPayable) + '</strong> and available EMT is short by <strong>' + TB.utils.money(bShort) + '</strong>; top up before the value-date cut-off, otherwise the booking becomes "Pending Top-up" and is cancelled with the full deposit forfeited if the grace period expires.') + '</div>';
+        ? '起息日需支付 <strong>' + TB.utils.money(bPayable) + '</strong>，当前可用 EMT 缺口 <strong>' + TB.utils.money(bShort) + '</strong>；请在起息日 cut-off 前完成充值，否则转「待补款」，宽限期结束仍未补足将被取消并没收全部定金。'
+        : 'The value-date payment is <strong>' + TB.utils.money(bPayable) + '</strong> and available EMT is short by <strong>' + TB.utils.money(bShort) + '</strong>; top up before the value-date cut-off, otherwise the order becomes "Pending Top-up" and is cancelled with the full deposit forfeited if the grace period expires.') + '</div>';
     }
   }
   el.innerHTML = rows;
 };
+
 
 TB.pages.member.afterRender = function(){
   var list = document.querySelector('.remind-list');
@@ -465,10 +393,10 @@ TB.pages.member.afterRender = function(){
     var el = document.getElementById(id);
     if(el) el.addEventListener('input', TB.pages.member.calcTrade);
   });
-  ['trade_buydate','trade_checkin','trade_checkout'].forEach(function(id){
+  ['trade_checkin','trade_checkout'].forEach(function(id){
     var el = document.getElementById(id);
     if(el){
-      el.addEventListener('change', function(){ TB.pages.member._validateDates(); TB.pages.member.calcTrade(); });
+      el.addEventListener('change', function(){ TB.pages.member._validateOrder(); TB.pages.member.calcTrade(); });
     }
   });
   TB.pages.member.calcTrade();
@@ -476,51 +404,57 @@ TB.pages.member.afterRender = function(){
 
 TB.pages.member._tradePanel = function(s, purchasable){
   var t = TB.pages.member.t;
-  var tab = TB.pages.member._tradeTab;
   var emt = TB.pages.member.walletEmt();
+  var today = TB.utils.defaultTradingDay();
   var field = function(label, note, valueHtml, inline){
     return '<div class="trade-field'+(inline ? ' trade-field-inline' : '')+'"><div class="trade-field-label"><span>'+label+(note ? TB.utils.note(note) : '')+'</span></div><div class="trade-field-value">'+valueHtml+'</div></div>';
   };
   var fieldRow = function(a, b){ return '<div class="trade-field-row">'+a+b+'</div>'; };
-  var html = '<div class="trade-panel"><div class="trade-tabs">'
-    + '<div class="trade-tab'+(tab === 'buy' ? ' active' : '')+'" onclick="TB.pages.member.setTradeTab(\'buy\')">'+t('买入','Buy')+'</div>'
-    + '<div class="trade-tab'+(tab === 'book' ? ' active' : '')+'" onclick="TB.pages.member.setTradeTab(\'book\')">'+t('预定','Book Ahead')+'</div>'
-    + '</div><div class="trade-body">';
-  html += field(t('可用 EMT','Available EMT'), t('来自 Token Bank 钱包可用余额，金额单位为 USB；买入扣款与预定定金均从中扣减。','From your Token Bank wallet available balance, denominated in USB; purchase debits and booking deposits are taken from it.'), TB.utils.money(emt), true);
-  if(tab === 'buy'){
-    var refPrice = TB.utils.price(s.markPrice);
-    var bidVal = s.markPrice;
-    html += '<div class="trade-field"><div class="trade-field-label"><span>'+t('挂单价格','Bid Price')+TB.utils.note(t('成员可自定义买入价格；旁边为 Bison 最新参考报价，供定价参考。','Set your own bid price; the reference price beside it is Bison’s latest quote for guidance.'))+'</span></div>'
-      + '<div class="trade-field-inline" style="font-size:13px;align-items:center;gap:10px">'
-      + '<input type="number" class="form-input" id="trade_price" value="'+bidVal+'" style="max-width:160px">'
-      + '<span class="text-muted text-sm">'+t('参考价 ','Ref. ')+refPrice+'</span>'
-      + '</div></div>';
-  }
-  html += '<div class="trade-field"><div class="trade-field-label"><span>'+(tab === 'buy' ? t('买入面值','Buy Face Value') : t('预定面值','Booking Face Value'))+TB.utils.note(t('不低于最小购买额 100,000，且为步进 10,000 的整数倍。','At least the 100,000 minimum purchase and a multiple of the 10,000 step.'))+'</span></div>'
+  var refPrice = TB.utils.price(s.markPrice);
+  var defaultCin = today;
+  var defaultCout = TB.utils.fmtDate(new Date(new Date(today + 'T00:00:00').getTime() + s.windowDays * 86400000));
+  if(s.maturityDate && defaultCout > s.maturityDate) defaultCout = s.maturityDate;
+  defaultCout = TB.utils.isTradingDay(defaultCout) ? defaultCout : TB.utils.prevTradingDay(defaultCout);
+  var html = '<div class="trade-panel"><div class="trade-tabs"><div class="trade-tab active">'+t('挂单','Place Order')+'</div></div><div class="trade-body">';
+  html += field(t('可用 EMT','Available EMT'), t('来自 Token Bank 钱包可用余额；挂单扣款与预定定金均从中扣减。','From your Token Bank wallet available balance; order debits and booking deposits are taken from it.'), TB.utils.money(emt), true);
+  html += '<div class="trade-field"><div class="trade-field-label"><span>'+t('挂单价格','Bid Price')+TB.utils.note(t('自定义买入价格；旁为 Bison 参考价供参考。','Set your own bid price; the reference price beside it is Bison’s quote for guidance.'))+'</span></div>'
+    + '<div class="trade-field-inline" style="font-size:13px;align-items:center;gap:10px">'
+    + '<input type="number" class="form-input" id="trade_price" value="'+s.markPrice+'" style="max-width:160px">'
+    + '<span class="text-muted text-sm">'+t('参考价 ','Ref. ')+refPrice+'</span>'
+    + '</div></div>';
+  html += '<div class="trade-field"><div class="trade-field-label"><span>'+t('挂单面值','Order Face Value')+TB.utils.note(t('不低于最小购买额 100,000，且为步进 10,000 的整数倍。','At least the 100,000 minimum purchase and a multiple of the 10,000 step.'))+'</span></div>'
     + '<input type="number" class="form-input" id="trade_face" value="1000000"></div>';
-  if(tab === 'buy'){
-    var today = TB.utils.defaultTradingDay();
-    var defOut = TB.utils.fmtDate(new Date(new Date(today + 'T00:00:00').getTime() + s.windowDays * 86400000));
-    if(s.maturityDate && defOut > s.maturityDate) defOut = s.maturityDate;
-    defOut = TB.utils.isTradingDay(defOut) ? defOut : TB.utils.prevTradingDay(defOut);
-    html += fieldRow(
-      '<div class="trade-field"><div class="trade-field-label"><span>'+t('起息日','Value Date')+TB.utils.note(t('默认为今天且不可修改，交割按当日收盘处理。','Defaults to today and is read-only; settlement follows today’s close.'))+'</span></div><input type="text" class="form-input" id="trade_buydate" value="'+today+'" disabled></div>',
-      '<div class="trade-field"><div class="trade-field-label"><span>'+t('赎回日期','Redemption Date')+TB.utils.note(t('可短于产品窗口持有（如只买 3 天）；仅交易日可选，须晚于起息日且不超过窗口天数。','May be shorter than the product window (e.g. 3 days); trading days only, after the value date and within the window.'))+'</span></div>'+TB.ui.datePicker({id:'trade_checkout', value:defOut})+'</div>'
-    );
-    html += field(t('成交价格','Execution Price'), t('引用 Bison 最新报价的当前价格；报价过期需等待发行方刷新。','Uses the latest Bison quote price; expired quotes must be refreshed by the issuer.'), TB.utils.price(s.markPrice));
-  } else {
-    html += fieldRow(
-      '<div class="trade-field"><div class="trade-field-label"><span>'+t('起息日','Value Date')+TB.utils.note(t('预定生效日，即持仓的起息日，默认为今天的下一个交易日；仅可选择今天之后的交易日，遇非营业日自动顺延。','Booking effective date — the value date of the position, defaulting to the next trading day after today; only future trading days are selectable and non-business days roll forward.'))+'</span></div>'+TB.ui.datePicker({id:'trade_checkin', value:TB.pages.member._bookValueDate()})+'</div>',
-      '<div class="trade-field"><div class="trade-field-label"><span>'+t('赎回日期','Redemption Date')+TB.utils.note(t('赎回日仅可选择交易日；不可交易的日期已置灰不可选。','The redemption date must be a trading day; non-trading days are greyed out and unselectable.'))+'</span></div>'+TB.ui.datePicker({id:'trade_checkout'})+'</div>'
-    );
-  }
+  html += fieldRow(
+    '<div class="trade-field"><div class="trade-field-label"><span>'+t('起息日','Value Date')+TB.utils.note(t('当天 → 买入逻辑（即时结算）；未来日期 → 预定逻辑（定金 + 起息日扣差额）。','Today → purchase (immediate settlement); future → booking (deposit + settlement at value date).'))+'</span></div>'+TB.ui.datePicker({id:'trade_checkin', value:defaultCin})+'</div>',
+    '<div class="trade-field"><div class="trade-field-label"><span>'+t('赎回日期','Redemption Date')+TB.utils.note(t('可短于产品窗口持有；仅交易日可选，须晚于起息日且不超过窗口天数。','May be shorter than the product window; trading days only, after the value date and within the window.'))+'</span></div>'+TB.ui.datePicker({id:'trade_checkout', value:defaultCout})+'</div>'
+  );
   html += '<div class="trade-date-err" id="trade_date_err"></div>';
   html += '<div id="trade-calc"></div>';
-  html += '<div class="trade-field-inline mt-4" style="font-size:12px;color:var(--text-secondary)">'+t('合规校验与资金校验由系统自动完成，客户无需手动勾选。','Compliance and funding checks are performed automatically; no manual consent required.')+'</div>';
-  html += '<button class="btn btn-primary btn-lg btn-block mt-4"'+(purchasable ? '' : ' disabled')+' onclick="'+(tab === 'buy' ? 'TB.pages.member.submitBuy(\''+s.id+'\')' : 'TB.pages.member.submitBooking(\''+s.id+'\')')+'">'
-    + (tab === 'buy' ? t('买入','Buy') : t('预定','Book Ahead')) + ' ' + TB.utils.esc(s.id) + '</button>';
+  html += '<div class="text-muted text-sm mt-4" style="line-height:1.8">'+t('合规校验与资金校验由系统自动完成，客户无需手动勾选。','Compliance and funding checks are performed automatically; no manual consent required.')+'</div>';
+  html += '<button class="btn btn-primary btn-lg btn-block mt-4"'+(purchasable ? '' : ' disabled')+' onclick="TB.pages.member.submitOrder(\''+s.id+'\')">'
+    + t('挂单','Place Order') + ' ' + TB.utils.esc(s.id) + '</button>';
   html += '</div></div>';
   return html;
+};
+
+/* 挂单提交：按起息日判断走买入还是预定 */
+TB.pages.member.submitOrder = function(seriesId){
+  var t = TB.pages.member.t;
+  var s = TB.pages.member._seriesById(seriesId);
+  var face = Number(TB.utils.getInputVal('trade_face'));
+  if(!face || face < 100000 || face % 10000 !== 0){
+    TB.utils.toast(t('挂单面值需不低于 100,000 且为 10,000 的整数倍','Face value must be at least 100,000 and a multiple of 10,000'), 'error');
+    return;
+  }
+  var cin = TB.utils.getInputVal('trade_checkin');
+  var cout = TB.utils.getInputVal('trade_checkout');
+  if(!cin || !cout){
+    TB.utils.toast(t('请选择起息日与赎回日期','Please select the value date and redemption date'), 'error');
+    return;
+  }
+  if(!TB.pages.member._validateOrder()) return;
+  var isToday = (cin === TB.utils.defaultTradingDay());
+  TB.pages.member.openOrderConfirm(isToday ? 'buy' : 'book');
 };
 
 TB.router.register('member', {
@@ -799,7 +733,7 @@ TB.router.register('member', {
 });
 
 TB.pages.member.viewMarketDetail = function(id){ TB.router.navigate('#/market/' + id); };
-TB.pages.member.bookAheadFromRow = function(id){ TB.pages.member._tradeTab = 'book'; TB.router.navigate('#/market/' + id); };
+TB.pages.member.bookAheadFromRow = function(id){ TB.router.navigate('#/market/' + id); };
 /* 取消预订（R22）：起息日前 2 个交易日（参数）前免费取消全额退定金；逾期取消没收全部定金 */
 TB.pages.member.cancelBooking = function(id){
   var t = TB.pages.member.t;

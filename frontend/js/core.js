@@ -21,8 +21,8 @@ TB.i18n = {
   'noData':{en:'No data',zh:'暂无数据'},'total':{en:'Total',zh:'共'},'items':{en:'items',zh:'条'},
   'yes':{en:'Yes',zh:'是'},'no':{en:'No',zh:'否'},'optional':{en:'Optional',zh:'选填'},'required':{en:'Required',zh:'必填'},
   // buttons
-  'login':{en:'Login',zh:'登录'},'logout':{en:'Logout',zh:'退出'},'purchase':{en:'Purchase',zh:'购买'},
-  'bookAhead':{en:'Book Ahead',zh:'预定'},'deposit':{en:'Deposit',zh:'充值'},'withdraw':{en:'Withdraw',zh:'提现'},
+  'login':{en:'Login',zh:'登录'},'logout':{en:'Logout',zh:'退出'},'purchase':{en:'Place order',zh:'挂单'},
+  'bookAhead':{en:'Place order',zh:'挂单'},'deposit':{en:'Deposit',zh:'充值'},'withdraw':{en:'Withdraw',zh:'提现'},
   'newProduct':{en:'New Product',zh:'新建产品'},'upload':{en:'Upload',zh:'上传'},'review':{en:'Review',zh:'审核'},
   'process':{en:'Process',zh:'处理'},'publish':{en:'Publish',zh:'发布'},'markAllRead':{en:'Mark All Read',zh:'全部已读'},
   'viewAll':{en:'View All',zh:'查看全部'},'saveDraft':{en:'Save Draft',zh:'保存草稿'},'resetPwd':{en:'Reset Password',zh:'重置密码'},
